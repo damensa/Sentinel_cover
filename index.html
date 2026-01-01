@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ca">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel - Demo Professional</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <!-- Screen 1: Alta Professional -->
+        <section id="screen-1" class="screen">
+            <header class="hero">
+                <h1>Sentinel</h1>
+                <p class="subtitle">Plataforma per a professionals de la climatització</p>
+            </header>
+            <div class="card">
+                <h2>Registre Professional</h2>
+                <div class="form-group">
+                    <label>Empresa instal·ladora</label>
+                    <input type="text" id="company-name" value="Instal·lacions Tècniques S.A."
+                        placeholder="Nom de l'empresa">
+                </div>
+                <div class="form-group">
+                    <label>Nom del tècnic</label>
+                    <input type="text" id="tech-name" value="Joan Garcia" placeholder="Nom del tècnic">
+                </div>
+                <div class="form-group highlight">
+                    <label>Número de registre instal·lador RITE</label>
+                    <input type="text" id="reg-number" value="08/123456" placeholder="Ex: 08/XXXXXX">
+                </div>
+                <p class="notice">Sentinel és una eina d'ús exclusiu per a professionals habilitats.</p>
+                <button class="btn btn-primary" onclick="navigateTo('home')">Accedir a Sentinel</button>
+            </div>
+        </section>
+
+        <!-- Screen Home: Àrea professional Sentinel (NEW) -->
+        <section id="screen-home" class="screen hidden">
+            <header class="app-header">
+                <span class="logo">Sentinel</span>
+            </header>
+            <div class="home-intro">
+                <h1>Àrea professional Sentinel</h1>
+                <p>Eina d’ús exclusiu per a professionals habilitats per registrar i justificar actuacions tècniques.
+                </p>
+            </div>
+
+            <div class="home-grid">
+                <!-- OPCIÓ 1: CTA PRINCIPAL -->
+                <button class="home-card primary-cta" onclick="navigateTo(2)">
+                    <div class="card-icon">➕</div>
+                    <div class="card-body">
+                        <h3>Donar d’alta una nova actuació</h3>
+                        <p>Registrar una incidència a casa d’un client, documentar la intervenció i generar l’informe.
+                        </p>
+                    </div>
+                </button>
+
+                <!-- OPCIÓ 2: CTA SECUNDÀRIA -->
+                <button class="home-card secondary-cta" onclick="navigateTo(1)">
+                    <div class="card-icon">👤</div>
+                    <div class="card-body">
+                        <h3>Dades professionals / Alta d’instal·lador</h3>
+                        <p>Consultar o completar les dades del tècnic i la seva acreditació professional. <span
+                                class="tag-small">Configurat</span></p>
+                    </div>
+                </button>
+
+                <!-- OPCIÓ 3: CTA TERCIÀRIA -->
+                <button class="home-card tertiary-cta"
+                    onclick="alert('Funció en desenvolupament. Aquesta secció permetria consultar l’historial complert d’actuacions del client per garantir la traçabilitat.')">
+                    <div class="card-icon">📂</div>
+                    <div class="card-body">
+                        <h3>Consultar actuacions anteriors</h3>
+                        <p>Accedir a l’historial d’actuacions registrades.</p>
+                    </div>
+                </button>
+            </div>
+        </section>
+
+        <!-- Screen 2: Nova Actuació -->
+        <section id="screen-2" class="screen hidden">
+            <header class="app-header">
+                <span class="logo">Sentinel</span>
+                <span class="step-indicator">Pas 1 de 4</span>
+            </header>
+            <div class="card">
+                <div class="scenario-selector">
+                    <label>Pre-omplir amb cas d'exemple:</label>
+                    <div class="scenario-chips">
+                        <button class="chip active" onclick="loadScenario(1)">1. Olor / CO</button>
+                        <button class="chip" onclick="loadScenario(2)">2. Aturades</button>
+                        <button class="chip" onclick="loadScenario(3)">3. Baix Rendiment</button>
+                    </div>
+                </div>
+                <h2>Nova Actuació</h2>
+                <div class="form-group">
+                    <label>Nom del Client</label>
+                    <input type="text" id="client-name" value="Maria Vidal" placeholder="Nom del client">
+                </div>
+                <div class="form-group">
+                    <label>Adreça</label>
+                    <input type="text" id="client-address" value="Carrer Major, 45, Sabadell"
+                        placeholder="Adreça de l'actuació">
+                </div>
+                <div class="form-group important">
+                    <label>Què diu el client? / Què li passa?</label>
+                    <textarea id="client-issue" rows="3">La caldera fa olor quan arrenca i em preocupa.</textarea>
+                </div>
+                <div class="sticky-actions">
+                    <button class="btn btn-primary" onclick="navigateTo(3)">Continuar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 3: Intervenció Professional -->
+        <section id="screen-3" class="screen hidden">
+            <header class="app-header">
+                <span class="logo">Sentinel</span>
+                <span class="step-indicator">Pas 2 de 4</span>
+            </header>
+            <div class="client-context">
+                <strong>Demanda del client:</strong>
+                <p id="context-client-issue"></p>
+            </div>
+            <div class="card">
+                <h2>Intervenció Professional</h2>
+                <div class="form-group">
+                    <label>Observacions Tècniques</label>
+                    <textarea id="tech-obs" rows="3"
+                        placeholder="Ex: S'observa mala combustió en fase d'arrencada...">S'ha verificat la combustió i s'ha detectat un excés de CO ambiental puntual per tiratge obstruït.</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Intervenció realitzada</label>
+                    <textarea id="tech-action" rows="3"
+                        placeholder="Ex: Neteja de cremadors i...">Neteja de la campana extractora de fums i ajust de la combustió. Comprovació de seguretats.</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Materials</label>
+                    <input type="text" id="tech-materials" value="Kit de neteja, Sensor de fums">
+                </div>
+
+                <!-- NEW BLOC: Expectativa de cost -->
+                <div class="cost-expectation-block card-inner">
+                    <h3>Expectativa de cost de la intervenció</h3>
+                    <p class="subtitle-small">Aquesta informació ajuda el client a entendre l’ordre de magnitud del cost
+                        abans de la factura final.</p>
+
+                    <div class="cost-options">
+                        <label class="cost-option">
+                            <input type="radio" name="cost-level" value="lleu" onchange="updateCostDescription()">
+                            <div class="option-content">
+                                <span class="option-title">Intervenció lleu</span>
+                                <span class="option-desc">Actuacions simples, temps limitat, pocs materials.</span>
+                            </div>
+                        </label>
+                        <label class="cost-option">
+                            <input type="radio" name="cost-level" value="mitjana" checked
+                                onchange="updateCostDescription()">
+                            <div class="option-content">
+                                <span class="option-title">Intervenció mitjana</span>
+                                <span class="option-desc">Requereix més temps, ajustos o substitució d'alguna
+                                    peça.</span>
+                            </div>
+                        </label>
+                        <label class="cost-option">
+                            <input type="radio" name="cost-level" value="complexa" onchange="updateCostDescription()">
+                            <div class="option-content">
+                                <span class="option-title">Intervenció complexa</span>
+                                <span class="option-desc">Treball prolongat, diverses actuacions o components
+                                    rellevants.</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="form-group mt-1">
+                        <label>Text associat (editable)</label>
+                        <textarea id="cost-expectation-text"
+                            rows="3">Aquest tipus d’actuació acostuma a tenir un cost intermig dins del mercat, ja que requereix temps de revisió i ajustos tècnics. El preu final dependrà del temps invertit i dels materials utilitzats.</textarea>
+                    </div>
+                    <p class="disclaimer">Aquesta expectativa és informativa i no constitueix un pressupost vinculant.
+                    </p>
+                </div>
+
+                <!-- NEW BLOC: Suport documental i normatiu -->
+                <div class="normative-support-block">
+                    <button type="button" class="accordion-header" onclick="toggleAccordion('normative-accordion')">
+                        <div class="header-info">
+                            <h3>Suport documental i normatiu (opcional)</h3>
+                            <p class="subtitle-tiny">Informació de suport per validar comprovacions i actuacions. No
+                                substitueix el criteri professional.</p>
+                        </div>
+                        <span class="chevron">▼</span>
+                    </button>
+
+                    <div id="normative-accordion" class="accordion-content">
+                        <div class="normative-section">
+                            <h4>Punts a verificar</h4>
+                            <ul class="check-list">
+                                <li><span>Verificar el correcte tiratge segons fabricant</span></li>
+                                <li><span>Comprovar ventilació del local</span></li>
+                                <li><span>Revisar condicions d’evacuació de fums</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="normative-section">
+                            <h4>Fragments rellevants de documentació</h4>
+                            <div class="doc-quote">
+                                <span class="doc-source">Manual fabricant – Model XYZ – Secció 4.2</span>
+                                <p>“Una evacuació incorrecta pot provocar olors en fase d’arrencada.”</p>
+                            </div>
+                        </div>
+
+                        <div class="normative-section">
+                            <h4>Referències normatives aplicables</h4>
+                            <div class="norm-item">
+                                <span class="norm-title">RITE – IT 1.2.4.1</span>
+                                <p>Condicions de ventilació dels locals amb equips de combustió.</p>
+                            </div>
+                        </div>
+
+                        <div class="normative-inclusion-v2">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="include-normative">
+                                <span class="checkmark"></span>
+                                Incloure referència normativa genèrica a l'informe
+                            </label>
+                        </div>
+
+                        <p class="disclaimer-fixed">Aquesta informació és de suport documental i normatiu. La
+                            interpretació i decisió final corresponen al professional habilitat.</p>
+                    </div>
+                </div>
+
+                <div class="mock-uploads mt-1">
+                    <div class="upload-item">
+                        <div class="icon">📷</div><span>Foto_combustió.jpg</span>
+                    </div>
+                    <div class="upload-item">
+                        <div class="icon">📄</div><span>Albarà_peces.pdf</span>
+                    </div>
+                </div>
+                <div class="sticky-actions">
+                    <button class="btn btn-primary" onclick="processExplanation()">Generar explicació per al
+                        client</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 4: Explicació al Client -->
+        <section id="screen-4" class="screen hidden">
+            <header class="app-header">
+                <span class="logo">Sentinel</span>
+                <span class="step-indicator">Pas 3 de 4</span>
+            </header>
+            <div class="card highlight-card">
+                <h2>Comunicació al Client</h2>
+                <div class="ai-output">
+                    <div class="ai-tag">✨ Text generat amb ajuda d'IA (editable)</div>
+                    <textarea id="ai-explanation" rows="8"></textarea>
+                </div>
+                <p class="helper-text">Podeu ajustar el text si voleu personalitzar el to abans de l'informe final.</p>
+                <div class="sticky-actions">
+                    <button class="btn btn-primary" onclick="navigateTo(5)">Veure informe final</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 5: Informe Final -->
+        <section id="screen-5" class="screen hidden">
+            <header class="app-header no-border">
+                <span class="logo">Sentinel</span>
+                <button class="btn btn-outline btn-small" onclick="window.print()">Imprimir / Guardar PDF</button>
+            </header>
+            <div class="report-view">
+                <div class="report-header">
+                    <div class="report-meta">
+                        <h1 class="report-title">INFORME D'ACTUACIÓ TÈCNICA</h1>
+                        <p id="report-date"></p>
+                    </div>
+                    <div class="professional-seal">
+                        <strong id="report-company"></strong><br>
+                        Tècnic: <span id="report-tech"></span><br>
+                        Reg. RITE: <span id="report-reg"></span>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <h3>Dades de l'actuació</h3>
+                    <p><strong>Client:</strong> <span id="report-client"></span></p>
+                    <p><strong>Adreça:</strong> <span id="report-address"></span></p>
+                </div>
+
+                <div class="report-section">
+                    <h3>Demanda del client</h3>
+                    <p class="literal-quote" id="report-issue"></p>
+                </div>
+
+                <div class="report-section">
+                    <h3>Intervenció realitzada</h3>
+                    <p id="report-action"></p>
+                </div>
+
+                <div class="report-section highlight-section">
+                    <h3>Explicació per a l'usuari</h3>
+                    <p id="report-explanation"></p>
+                </div>
+
+                <div class="report-section">
+                    <h3>Expectativa de cost</h3>
+                    <p id="report-cost-expectation"></p>
+                </div>
+
+                <footer class="report-footer">
+                    <p>Aquest informe deixa constància de l'actuació realitzada per un professional habilitat.</p>
+                </footer>
+            </div>
+            <button class="btn btn-secondary mt-2" onclick="location.reload()">Inicia Nova Demo</button>
+        </section>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
