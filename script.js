@@ -41,7 +41,7 @@ function loadScenario(id) {
     document.getElementById('tech-obs').value = s.techObs;
     document.getElementById('tech-action').value = s.techAction;
 
-    // Find materials input (it doesn't have an ID, let's fix that or use selector)
+    // Find materials input
     const materialsInput = document.querySelector('input[value*="Kit"], input[value*="Elèctrode"], input[value*="Analitzador"]');
     if (materialsInput) materialsInput.value = s.materials;
 
@@ -59,22 +59,105 @@ function navigateTo(screenNumber) {
         screen.classList.add('hidden');
     });
 
+    // Special logic for client screen
+    if (screenNumber === 'client') {
+        generateProCards();
+        document.getElementById('screen-client').classList.remove('hidden');
+        window.scrollTo(0, 0);
+        return;
+    }
+
     // Show target screen
-    const targetId = typeof screenNumber === 'string' ? `screen-${screenNumber}` : `screen-${screenNumber}`;
+    const targetId = typeof screenNumber === 'string' && !screenNumber.startsWith('screen-')
+        ? `screen-${screenNumber}`
+        : (typeof screenNumber === 'number' ? `screen-${screenNumber}` : screenNumber);
     document.getElementById(targetId).classList.remove('hidden');
 
     // Update context for screen 3 if navigating from screen 2
-    if (screenNumber === 3) {
+    if (screenNumber === 3 || screenNumber === 2 || screenNumber === '2') {
         document.getElementById('context-client-issue').textContent = document.getElementById('client-issue').value;
     }
 
     // Prepare report for screen 5
-    if (screenNumber === 5) {
+    if (screenNumber === 5 || screenNumber === '5') {
         updateReport();
     }
 
     // Scroll to top
     window.scrollTo(0, 0);
+}
+
+function generateProCards() {
+    const container = document.getElementById('pro-cards-container');
+    if (!container) return;
+
+    const professionalName = document.getElementById('company-name').value;
+    const techName = document.getElementById('tech-name').value;
+    const regNumber = document.getElementById('reg-number').value;
+
+    const staticPros = [
+        { company: "Servei Calefacció Central", tech: "Marc Solé", reg: "08/654321", zone: "Vallès Occidental", specialty: "Calderes" },
+        { company: "Gas & Confort SL", tech: "Laura Pérez", reg: "08/987654", zone: "Sabadell – Terrassa", specialty: "Gas" }
+    ];
+
+    let html = `
+        <div class="pro-card">
+            <div class="pro-header">
+                <div class="pro-info">
+                    <h4>${professionalName}</h4>
+                    <p class="pro-tech">Tècnic: ${techName}</p>
+                </div>
+                <span class="pro-badge">💡 Recomanat per zona</span>
+            </div>
+            <div class="pro-details">
+                <div class="pro-detail-item"><span>📋 Reg:</span> ${regNumber}</div>
+                <div class="pro-detail-item"><span>📍 Zona:</span> Sabadell i rodalies</div>
+                <div class="pro-detail-item"><span>🔥 Esp:</span> Gas i calderes</div>
+            </div>
+            <button class="btn btn-primary btn-small" onclick="selectProfessional('${professionalName}')">Contactar amb aquest professional</button>
+        </div>
+    `;
+
+    staticPros.forEach(pro => {
+        html += `
+            <div class="pro-card">
+                <div class="pro-header">
+                    <div class="pro-info">
+                        <h4>${pro.company}</h4>
+                        <p class="pro-tech">Tècnic: ${pro.tech}</p>
+                    </div>
+                </div>
+                <div class="pro-details">
+                    <div class="pro-detail-item"><span>📋 Reg:</span> ${pro.reg}</div>
+                    <div class="pro-detail-item"><span>📍 Zona:</span> ${pro.zone}</div>
+                    <div class="pro-detail-item"><span>🔥 Esp:</span> ${pro.specialty}</div>
+                </div>
+                <button class="btn btn-primary btn-small" onclick="selectProfessional('${pro.company}')">Contactar amb aquest professional</button>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function selectProfessional(company) {
+    // Copy data from client intake to screen-2
+    const intakeIssue = document.getElementById('client-intake-issue').value;
+    const intakeName = document.getElementById('client-intake-name').value;
+    const intakeAddress = document.getElementById('client-intake-address').value;
+
+    if (intakeIssue) document.getElementById('client-issue').value = intakeIssue;
+    if (intakeName) document.getElementById('client-name').value = intakeName;
+    if (intakeAddress) document.getElementById('client-address').value = intakeAddress;
+
+    // Show assignment tag in screen-2
+    const tag = document.getElementById('assigned-pro-tag');
+    if (tag) {
+        tag.textContent = `Incidència assignada a: ${company}`;
+        tag.classList.remove('hidden');
+    }
+
+    navigateTo(2);
 }
 
 function toggleAccordion(id) {
@@ -95,13 +178,11 @@ function updateCostDescription() {
         'complexa': "Aquest tipus d'actuació acostuma a tenir un cost més elevat de l'habitual, ja que requereix un treball tècnic prolongat o la substitució de components rellevants. El preu final dependrà del temps invertit i dels materials utilitzats."
     };
 
-    costTextarea.value = descriptions[selectedLevel];
+    costTextarea.value = descriptions[selectedLevel] || "";
 }
 
 function processExplanation() {
     const s = scenarios[currentScenario];
-
-    // Use the model explanation provided for the scenario
     document.getElementById('ai-explanation').value = s.explanation;
     navigateTo(4);
 }
@@ -129,7 +210,6 @@ function updateReport() {
     document.getElementById('report-cost-expectation').textContent = document.getElementById('cost-expectation-text').value;
 }
 
-// Ensure first screen is visible on load
 window.onload = () => {
     navigateTo(1);
 };

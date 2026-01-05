@@ -51,13 +51,21 @@
             </div>
 
             <div class="home-grid">
-                <!-- OPCIÓ 1: CTA PRINCIPAL -->
-                <button class="home-card primary-cta" onclick="navigateTo(2)">
-                    <div class="card-icon">➕</div>
+                <!-- OPCIÓ 1: CTA PRINCIPAL (VISTA CLIENT) -->
+                <button class="home-card primary-cta" onclick="navigateTo('client')">
+                    <div class="card-icon">🏠</div>
                     <div class="card-body">
-                        <h3>Donar d’alta una nova actuació</h3>
-                        <p>Registrar una incidència a casa d’un client, documentar la intervenció i generar l’informe.
-                        </p>
+                        <h3>Nova incidència (Vista client)</h3>
+                        <p>Inicieu la sol·licitud com a client per trobar un professional habilitat.</p>
+                    </div>
+                </button>
+
+                <!-- OPCIÓ 2: CTA SECUNDÀRIA (FLUX INSTAL·LADOR) -->
+                <button class="home-card secondary-cta" onclick="navigateTo(2)">
+                    <div class="card-icon">🛠️</div>
+                    <div class="card-body">
+                        <h3>Flux instal·lador (sense Vista client)</h3>
+                        <p>Accedir directament al registre de l'actuació professional.</p>
                     </div>
                 </button>
 
@@ -80,6 +88,58 @@
                         <p>Accedir a l’historial d’actuacions registrades.</p>
                     </div>
                 </button>
+            </div>
+        </section>
+
+        <!-- New Screen Client: Vista Client -->
+        <section id="screen-client" class="screen hidden">
+            <header class="app-header">
+                <span class="logo">Sentinel</span>
+            </header>
+
+            <div class="client-hero">
+                <h1>Troba un professional habilitat</h1>
+                <p class="subtitle">Explica què passa i et posarem en contacte amb un instal·lador registrat. Sense
+                    comparar preus ni valoracions.</p>
+            </div>
+
+            <div class="card">
+                <h3>Explica'ns la teva incidència</h3>
+                <div class="form-group">
+                    <label>Què passa? (Exemple: olor de gas, la caldera s'atura...)</label>
+                    <textarea id="client-intake-issue" rows="4"
+                        placeholder="Descriu breument el problema..."></textarea>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>El teu nom</label>
+                        <input type="text" id="client-intake-name" placeholder="Nom complet">
+                    </div>
+                    <div class="form-group">
+                        <label>Adreça / Zona</label>
+                        <input type="text" id="client-intake-address" placeholder="Ex: Sabadell, Carrer Major 10">
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-block">
+                <h4>Què pots esperar</h4>
+                <ul class="simple-list">
+                    <li><span>Et contactarà un professional habilitat</span></li>
+                    <li><span>Rebràs una explicació clara després de la intervenció</span></li>
+                    <li><span>Tindràs un informe resum per a l’historial</span></li>
+                </ul>
+            </div>
+
+            <div class="pro-selection">
+                <h3>Professionals habilitats disponibles</h3>
+                <p class="verification-notice-top">
+                    Tots els professionals mostrats estan degudament habilitats i identificats. Sentinel no compara
+                    preus ni mostra valoracions.
+                </p>
+                <div id="pro-cards-container" class="pro-grid">
+                    <!-- Dynamic cards will be injected here -->
+                </div>
             </div>
         </section>
 
@@ -110,6 +170,7 @@
                 </div>
                 <div class="form-group important">
                     <label>Què diu el client? / Què li passa?</label>
+                    <div id="assigned-pro-tag" class="tag-info hidden"></div>
                     <textarea id="client-issue" rows="3">La caldera fa olor quan arrenca i em preocupa.</textarea>
                 </div>
                 <div class="sticky-actions">
