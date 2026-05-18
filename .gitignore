@@ -1,0 +1,27 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Large reference PDFs (BOE/UNE/manufacturer manuals)
+BOE-130_Codigo_del_Gas.pdf
+BOE-A-2006-15345-consolidado.pdf
+BOE-A-2007-15820-consolidado.pdf
+UNE_60670.pdf
+manuals_calderas/
+
+# Local test/generated PDFs
+*_TEST.pdf
+*FILLED_TEST.pdf
+ELEC1_TEST.pdf
+
+# Scraping/bot directories
+BOT/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db

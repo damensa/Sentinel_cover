@@ -1,0 +1,34 @@
+{
+    "DHHBWA_fillable": {
+        "titular": {
+            "nombre": "text__7021",
+            "nif": "text__313d",
+            "via": "text__7117",
+            "num": "text__2d7c",
+            "poblacion": "text__9cd5",
+            "cp": "text__414e",
+            "provincia": "text__9875",
+            "email": "text__f334",
+            "telf": "text__384e"
+        },
+        "emplazamiento": {
+            "via": "text__4be1",
+            "num": "text__4285",
+            "poblacion": "text__a4e7",
+            "cp": "text__6a66",
+            "provincia": "text__5712",
+            "refcast": "text__3aa8",
+            "uso": "text__834d"
+        },
+        "tecnico": {
+            "sup": "text__c7ca",
+            "ptmax": "text__fdd1",
+            "tension": "text__1257",
+            "secalim": "text__dd55",
+            "cups": "text__779c"
+        },
+        "firma": {
+            "sitio": "text__89a9"
+        }
+    }
+}

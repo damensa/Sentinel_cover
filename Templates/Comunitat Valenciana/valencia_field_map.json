@@ -1,0 +1,36 @@
+{
+    "23294_BI": {
+        "titular": {
+            "nombre": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_NOM[0]",
+            "nif": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_DNI[0]",
+            "domicilio": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_DOM[0]",
+            "cp": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_CP[0]",
+            "poblacion": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_LOC[0]",
+            "provincia": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_PRO[0]",
+            "email": "form1[0].Pagina1[0].seccion\\.a[0].A_CORREO[0]"
+        },
+        "emplazamiento": {
+            "direccion": "form1[0].Pagina1[0].seccion\\.b[0].B_EMPL[0]",
+            "poblacion": "form1[0].Pagina1[0].seccion\\.b[0].B_LOC[0]",
+            "cp": "form1[0].Pagina1[0].seccion\\.b[0].B_CP[0]",
+            "provincia": "form1[0].Pagina1[0].seccion\\.b[0].B_PROV[0]"
+        },
+        "tecnico": {
+            "potencia": "form1[0].Pagina1[0].seccion\\.b[0].B_POTP[0]",
+            "cups": "form1[0].Pagina1[0].seccion\\.c[0].C_CUP[0]"
+        }
+    },
+    "23019_BI": {
+        "titular": {
+            "nombre": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_NOM[0]",
+            "nif": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_DNI[0]",
+            "email": "form1[0].Pagina1[0].seccion\\.a[0].A_TIT_CORREO[0]"
+        },
+        "firma": {
+            "dia": "form1[0].Pagina1[0].FI_DIA[0]",
+            "mes": "form1[0].Pagina1[0].FI_MES[0]",
+            "any": "form1[0].Pagina1[0].FI_ANY[0]",
+            "lloc": "form1[0].Pagina1[0].FI_LLOC[0]"
+        }
+    }
+}

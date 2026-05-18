@@ -1,0 +1,148 @@
+{
+    "fields": [
+        {
+            "id": "tipus_via",
+            "question": "Quin és el tipus de via?",
+            "internalName": "CBO_TipusVia",
+            "type": "dropdown",
+            "mapping": {
+                "Apartament": "APA",
+                "Avinguda": "AVI",
+                "Baixada": "BAI",
+                "Barranc": "BRC",
+                "Barri": "BAR",
+                "Bloc": "BLO",
+                "Camí": "CAM",
+                "Carrer": "CAR",
+                "Carreró": "CRO",
+                "Carretera": "CRT",
+                "Cases": "CAS",
+                "Colònia": "COL",
+                "Costa": "COS",
+                "Disseminat": "DIS",
+                "Edifici": "EDI",
+                "Fageda": "FAG",
+                "Glorieta": "GLO",
+                "Gran Via": "GRV",
+                "Grup": "GRU",
+                "Lloc": "LLO",
+                "Mercat": "MER",
+                "Parc": "PAR",
+                "Partida": "PTD",
+                "Passatge": "PTG",
+                "Passeig": "PAS",
+                "Plaça": "PLA",
+                "Placeta": "PCT",
+                "Poblat": "POB",
+                "Polígon": "POL",
+                "Prolongació": "PRO",
+                "Pujada": "PUJ",
+                "Rambla": "RAM",
+                "Ronda": "RON",
+                "Senda": "SEN",
+                "Torrent": "TOR",
+                "Travessera": "TRA",
+                "Travessia": "TVS",
+                "Urbanització": "URB",
+                "Via": "VIA",
+                "Xalet": "XAL"
+            }
+        },
+        {
+            "id": "nom_via",
+            "question": "Quin és el nom de la via?",
+            "internalName": "TXT_NomVia",
+            "type": "text"
+        },
+        {
+            "id": "num_via",
+            "question": "Número de la via:",
+            "internalName": "TXT_Num",
+            "type": "text"
+        },
+        {
+            "id": "categoria",
+            "question": "Quina és la categoria?",
+            "internalName": "TXT_Categoria",
+            "type": "dropdown",
+            "mapping": {
+                "Bàsica": "Bàsica",
+                "Especialista": "Especialista"
+            }
+        },
+        {
+            "id": "tensio",
+            "question": "Quina és la tensió?",
+            "internalName": "TXT_Tensio",
+            "type": "dropdown",
+            "mapping": {
+                "230 V": "230 V",
+                "3x230/400 V": "3x230/400 V",
+                "Altra": "Altra"
+            }
+        },
+        {
+            "id": "material_conductor",
+            "question": "Quin és el material conductor?",
+            "internalName": "TXT_MaterialConductor",
+            "type": "dropdown",
+            "mapping": {
+                "Coure": "Coure",
+                "Alumini": "Alumini"
+            }
+        },
+        {
+            "id": "ubicacio_comptadors",
+            "question": "On s'ubiquen els comptadors?",
+            "internalName": "TXT_UbicacioComptadors",
+            "type": "dropdown",
+            "mapping": {
+                "Sala": "Sala",
+                "Armari": "Armari",
+                "Altra": "Altra"
+            }
+        },
+        {
+            "id": "tipus_connexio",
+            "question": "Quin és el tipus de connexió?",
+            "internalName": "TXT_TipusConnexio",
+            "type": "dropdown",
+            "mapping": {
+                "Assistida": "Assistida",
+                "Interconnectada": "Interconnectada"
+            }
+        },
+        {
+            "id": "us_instalacio",
+            "question": "Quin és l'ús de la instal·lació?",
+            "internalName": "TXT_Us",
+            "type": "dropdown",
+            "mapping": {
+                "a) Instal·lacions industrials": "1",
+                "b) Instal·lacions temporals per a obres segons l'ITC-BT-33 del REBT": "2",
+                "d) Instal·lacions d'enllaç": "3",
+                "e) Instal·lacions de serveis comuns d'edificis": "4",
+                "f) Instal·lacions d'habitatges": "5",
+                "g) Instal·lacions en locals d'espectacles i activitats recreatives amb subclassificació d'acord amb l'ITC-BT-28": "g",
+                "h) Instal·lacions en locals de reunion, treball i usos sanitaris amb subclassificació d'acord amb l'ITC-BT-28": "h",
+                "i) Instal·lacions de recàrrega de vehicles elèctrics": "8",
+                "j) Instal·lacions en aparcaments i estacionaments": "9",
+                "k) Instal·lacions d'enllumenat exterior": "10",
+                "l) Instal·lacions generadores per autoconsum": "11",
+                "m) Instal·lacions d'oficines sense presència de públic": "12",
+                "n) Instal·lacions generadores": "13",
+                "o) Altres usos": "14"
+            }
+        },
+        {
+            "id": "subministrament_complementari",
+            "question": "Té subministrament complementari?",
+            "internalName": "RB_Subministrament",
+            "type": "radio",
+            "mapping": {
+                "Sí": "P1",
+                "No": "P2"
+            }
+        }
+    ]
+}

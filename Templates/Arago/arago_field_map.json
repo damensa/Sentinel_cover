@@ -1,0 +1,103 @@
+{
+    "E0001": {
+        "interesado": {
+            "nombre": "text__a34f",
+            "apellido1": "text__6bdc",
+            "apellido2": "text__9b94",
+            "nif": "text__3d90"
+        },
+        "representante": {
+            "nombre": "text__29bf",
+            "apellido1": "text__5614",
+            "apellido2": "text__fb20",
+            "nif": "text__3ef8"
+        },
+        "emplazamiento": {
+            "via": "text__414f",
+            "numero": "text__4418",
+            "provincia": "text__968c",
+            "localidad": "text__3f76",
+            "catastral": "text__1fe9",
+            "cp": "text__e8d1",
+            "denominacion": "text__9f48"
+        },
+        "titular": {
+            "nif": "text__0dc0",
+            "nombre": "text__70a6",
+            "apellido1": "text__4a8a",
+            "apellido2": "text__98be",
+            "email": "text__0052",
+            "telefono": "text__e650"
+        },
+        "tecnico": {
+            "uso": "text__1f07",
+            "potencia_inst": "text__d37d",
+            "potencia_max": "text__cd5a",
+            "tension": "text__2fa7"
+        },
+        "firma": {
+            "poblacion": "text__74ea",
+            "dia": "text__3283",
+            "mes_ano": "text__e3fd"
+        }
+    },
+    "C0004": {
+        "titular": {
+            "nombre": "text_f26d_c6aa",
+            "nif": "text_d85d_423f",
+            "email": "text_70d7_2ee5",
+            "telefono": "text_e4c0_e932"
+        },
+        "emplazamiento": {
+            "via": "text_cda4_fb5b",
+            "numero": "text_fd19_4b52",
+            "provincia": "text_efc7_ed2b",
+            "localidad": "text_bb4f_f294",
+            "denominacion": "text_d5e8_7f4e",
+            "cp": "text_956f_16f7",
+            "catastral": "text_f716_092c",
+            "coord_x": "text_2f83_1277",
+            "coord_y": "text_31a6_71c6"
+        },
+        "tecnico": {
+            "uso": "text_89b0_3643",
+            "potencia_max": "text_c931_72d4",
+            "seccion": "text_96d6_bb68",
+            "iga": "text_aed5_7564",
+            "r_tierra": "text_213b_86a6",
+            "sensibilidad": "text_5892_7f24"
+        },
+        "empresa": {
+            "nombre": "text_fa7d_bc20",
+            "nif": "text_fdf8_d7a3",
+            "representante": "text_f81d_2ed6",
+            "rep_nif": "text_3828_cf26"
+        }
+    },
+    "C0001": {
+        "titular": {
+            "nombre": "460a",
+            "nif": "f176",
+            "email": "3228",
+            "telefono": "b79b"
+        },
+        "emplazamiento": {
+            "via": "1eca",
+            "numero": "e451",
+            "provincia": "8911",
+            "localidad": "6685",
+            "denominacion": "a99a",
+            "cp": "bdb3"
+        },
+        "tecnico": {
+            "uso": "bf4e",
+            "potencia_inst": "927a",
+            "potencia_max": "e400",
+            "tension": "9152",
+            "iga": "1647",
+            "diferencial": "c1d9",
+            "sensibilidad": "c012",
+            "r_tierra": "3e49"
+        }
+    }
+}

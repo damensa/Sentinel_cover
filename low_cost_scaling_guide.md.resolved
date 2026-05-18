@@ -1,0 +1,37 @@
+# Guia Tècnica: Escalat Eficient i de Baix Cost
+
+Aquest document detalla els passos per transformar l'actual prototip en una aplicació robusta capaç de gestionar 600+ usuaris amb un cost mensual inferior a 5-10€.
+
+## 1. Persistència: Migració a SQLite
+Els fitxers JSON ([subscriptors.json](file:///C:/Users/dave_/.gemini/antigravity/scratch/notebooklm-mcp/subscriptors.json), `userState`) són perillosos en producció perquè es poden corrompre si dos processos hi escriuen alhora.
+- **Acció:** Substituir la lectura/escriptura de fitxers per una base de dades **SQLite**.
+- **Benefici:** Suporta milers d'accessos simultanis, és un sol fitxer (fàcil de fer backup) i el cost és 0€.
+- **Codi recomanat:** Utilitzar `Better-SQLite3` o un ORM com `Prisma` per gestionar les taules d'usuaris, estats de conversa i logs.
+
+## 2. Portabilitat: Dockerització
+Perquè el bot funcioni igual en el teu PC que en un servidor Linux:
+- **Acció:** Crear un fitxer `Dockerfile` que inclogui Node.js, les dependències de Chromium (per a `whatsapp-web.js`) i les eines de PDF.
+- **Benefici:** Elimines el "a mi em funciona" i pots moure el bot de servidor en qüestió de minuts sense haver de tornar a instal·lar res.
+
+## 3. Estabilitat: Cua de Tasques (Background Jobs)
+Generar un esquema unifilar o un ELEC-1 triga uns segons. Si molta gent ho demana alhora, el bot es pot bloquejar.
+- **Acció:** Implementar una cua (ex: `BullMQ` amb un Redis petit o una solució basada en SQLite).
+- **Flux:**
+    1. L'usuari demana el PDF.
+    2. El bot respon: "Rebut, estic generant el teu document...".
+    3. Una tasca en segon pla genera el PDF.
+    4. El bot l'envia quan està llest.
+- **Benefici:** El bot mai es bloqueja i l'usuari sent que el sistema és professional.
+
+## 4. Servidor i Monitoratge
+- **Hosting:** VPS a **Hetzner** (model Arm64 o x86 més bàsic, ~4.50€/mes).
+- **Process Manager:** Usar `PM2` per reiniciar el bot automàticament si peta.
+- **Backup:** Programar un "script" que pugi el fitxer de la base de dades SQLite a un Cloud (ex: Google Drive o S3) un cop al dia.
+
+## 5. Propers Passos Tècnics
+1.  **Refactorització de [whatsapp.ts](file:///C:/Users/dave_/.gemini/antigravity/scratch/notebooklm-mcp/src/whatsapp.ts)**: Separar la lògica de l'estat d'usuari de la memòria a la base de dades.
+2.  **Creació del `Dockerfile`**: Preparar l'empaquetat.
+3.  **Configuració de Cues**: Implementar el gestor de generació asíncrona.
+
+---
+Aquest pla permet créixer de forma lineal sense augmentar els costos fins que el volum sigui extremadament alt (>10,000 usuaris).
