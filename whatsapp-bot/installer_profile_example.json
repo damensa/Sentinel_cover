@@ -1,0 +1,21 @@
+{
+    "empresa": "Instal·lacions Elèctriques Sabadell S.L.",
+    "rasic": "005001234",
+    "nif": "B66123456",
+    "nom_instal·lador": "Joan Garcia i Pons",
+    "categoria": "Especialista (BT-IE)",
+    "dni_instal·lador": "44556677Z",
+    "adreca": {
+        "tipus_via": "Carrer",
+        "nom_via": "de la República",
+        "numero": "42",
+        "bloc": "A",
+        "escala": "1",
+        "pis": "2",
+        "porta": "1a",
+        "codi_postal": "08202",
+        "poblacio": "Sabadell",
+        "telefon": "937250000",
+        "correu": "tecnic@iesabadell.cat"
+    }
+}

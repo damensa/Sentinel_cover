@@ -1,0 +1,78 @@
+[
+    {
+        "id": "elec1",
+        "formal_name": "Certificat d'instal·lació elèctrica de baixa tensió (model ELEC-1)",
+        "description": "Certificat per a instal·lacions elèctriques de baixa tensió. També conegut com butlletí elèctric, paper de la llum o certificat de baixa tensió.",
+        "synonyms": [
+            "elec1",
+            "elec-1",
+            "certificat elèctric",
+            "butlletí elèctric",
+            "paper de la llum",
+            "baixa tensió",
+            "bt"
+        ]
+    },
+    {
+        "id": "dr_installacio",
+        "formal_name": "Declaració responsable d'instal·lació",
+        "description": "Declaració responsable d'instal·lació per a diversos tipus (grua, quimiqs, pressió, baixa tensió, etc.).",
+        "synonyms": [
+            "declaració responsable",
+            "declaracio responsable",
+            "declaració d'instal·lació",
+            "dr instal·lació",
+            "dr",
+            "responsable"
+        ]
+    },
+    {
+        "id": "contracte_bt",
+        "formal_name": "Contracte de manteniment de baixa tensió",
+        "description": "Contracte de manteniment per a instal·lacions elèctriques de baixa tensió.",
+        "synonyms": [
+            "contracte manteniment",
+            "manteniment bt",
+            "contracte elèctric",
+            "manteniment baixa tensió",
+            "contracte"
+        ]
+    },
+    {
+        "id": "elec2_unifilar",
+        "formal_name": "Esquema unifilar (model ELEC-2)",
+        "description": "Esquema unifilar per a instal·lacions elèctriques de baixa tensió.",
+        "synonyms": [
+            "elec2",
+            "elec-2",
+            "esquema unifilar",
+            "unifilar",
+            "esquema",
+            "croquis elèctric"
+        ]
+    },
+    {
+        "id": "elec3_memoria",
+        "formal_name": "Memòria Tècnica (model ELEC-3)",
+        "description": "Memòria tècnica per a instal·lacions elèctriques de baixa tensió.",
+        "synonyms": [
+            "elec3",
+            "elec-3",
+            "memòria tècnica",
+            "memoria tecnica",
+            "memòria"
+        ]
+    },
+    {
+        "id": "dictamen_reconeixement",
+        "formal_name": "Dictamen de Reconeixement",
+        "description": "Dictamen de Reconeixement d'instal·lacions elèctriques de baixa tensió per a inspeccions periòdiques.",
+        "synonyms": [
+            "dictamen",
+            "reconeixement",
+            "inspecció periòdica",
+            "revisió periòdica",
+            "dictamen de reconeixement"
+        ]
+    }
+]

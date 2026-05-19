@@ -1,0 +1,31 @@
+services:
+  sentinel-bot:
+    build: .
+    container_name: sentinel-bot
+    restart: always
+    environment:
+      - REDIS_HOST=redis
+    env_file:
+      - .env
+    volumes:
+      # Persistent SQLite Database
+      - ./sentinel.db:/usr/src/app/sentinel.db
+      # Persistent WhatsApp Session
+      - ./.wwebjs_auth:/usr/src/app/.wwebjs_auth
+      # Persistent Seen Contacts (if still used)
+      - ./seen_contacts.json:/usr/src/app/seen_contacts.json
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10mb"
+        max-file: "3"
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinel-redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - ./redis-data:/data
