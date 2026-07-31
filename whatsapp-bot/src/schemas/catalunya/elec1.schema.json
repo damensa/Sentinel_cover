@@ -1,0 +1,79 @@
+{
+  "$id": "https://sentinel.local/schemas/catalunya/elec1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ELEC1_Catalunya",
+  "type": "object",
+  "required": ["titular", "emplacament", "instalacio"],
+  "properties": {
+    "titular": { "$ref": "../_shared.json#/$defs/Persona" },
+    "emplacament": { "$ref": "../_shared.json#/$defs/Emplacament" },
+    "instalacio": {
+      "type": "object",
+      "required": ["cups", "potencia_kw", "tensio", "us"],
+      "properties": {
+        "cups": { "$ref": "../_shared.json#/$defs/CUPS" },
+        "potencia_kw": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 500,
+          "description": "Potència contractada en kW."
+        },
+        "tensio": {
+          "type": "string",
+          "enum": ["230 V", "3x230/400 V", "Altra"]
+        },
+        "material_conductor": {
+          "type": "string",
+          "enum": ["Coure", "Alumini"]
+        },
+        "ubicacio_comptadors": {
+          "type": "string",
+          "enum": ["Sala", "Armari", "Altra"]
+        },
+        "tipus_connexio": {
+          "type": "string",
+          "enum": ["Assistida", "Interconnectada"]
+        },
+        "categoria": {
+          "type": "string",
+          "enum": ["Bàsica", "Especialista"]
+        },
+        "us": {
+          "type": "string",
+          "enum": [
+            "Instal·lacions industrials",
+            "Instal·lacions temporals per a obres",
+            "Instal·lacions d'enllaç",
+            "Instal·lacions de serveis comuns d'edificis",
+            "Instal·lacions d'habitatges",
+            "Locals d'espectacles",
+            "Locals de reunió/treball/sanitaris",
+            "Recàrrega de vehicles elèctrics",
+            "Aparcaments",
+            "Enllumenat exterior",
+            "Generadores per autoconsum",
+            "Oficines sense públic",
+            "Generadores",
+            "Altres usos"
+          ],
+          "description": "Tria l'ús predominant. La majoria de casos són 'Instal·lacions d'habitatges'."
+        },
+        "subministrament_complementari": { "type": "boolean" }
+      }
+    },
+    "_confidence": {
+      "type": "object",
+      "description": "Confidence per als camps crítics. La UI marca en groc/vermell tot el que no sigui 'alta'; l'instal·lador ha de confirmar abans de generar el PDF.",
+      "properties": {
+        "nom_complet": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "nif": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "cups": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "potencia_kw": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "nom_via": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "num_via": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "poblacio": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "codi_postal": { "$ref": "../_shared.json#/$defs/Confidence" }
+      }
+    }
+  }
+}

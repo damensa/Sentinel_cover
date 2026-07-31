@@ -1,0 +1,76 @@
+{
+  "$id": "https://sentinel.local/schemas/catalunya/dictamen.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dictamen_Reconeixement_Catalunya",
+  "type": "object",
+  "required": ["general", "anomalies"],
+  "properties": {
+    "general": {
+      "type": "object",
+      "required": ["titular", "emplacament", "data_revisio", "tensio", "expedient"],
+      "properties": {
+        "titular": { "type": "string" },
+        "emplacament": {
+          "type": "string",
+          "description": "Adreça en una sola línia."
+        },
+        "localitat": { "type": "string" },
+        "codi_postal": { "$ref": "../_shared.json#/$defs/CodiPostal" },
+        "data_revisio": {
+          "type": "string",
+          "format": "date"
+        },
+        "activitat": {
+          "type": "string",
+          "description": "Activitat de la instal·lació."
+        },
+        "expedient": { "type": "string" },
+        "empresa_distribuidora": { "type": "string" },
+        "tensio": {
+          "type": "string",
+          "enum": ["230 V", "3x230/400 V", "Altra"]
+        },
+        "potencia_max_kw": { "type": "number" },
+        "potencia_contractada_kw": { "type": "number" },
+        "potencia_max_comp_kw": {
+          "type": "number",
+          "description": "Potència màxima subministrament complementari."
+        },
+        "potencia_contractada_comp_kw": { "type": "number" }
+      }
+    },
+    "anomalies": {
+      "type": "array",
+      "minItems": 43,
+      "maxItems": 43,
+      "description": "Els 43 punts d'inspecció normatius. Ordre fix segons el checklist oficial. L'instal·lador pot recórrer-los en veu i marcar cada un.",
+      "items": {
+        "type": "object",
+        "required": ["id", "estat"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 43
+          },
+          "estat": {
+            "type": "string",
+            "enum": ["compleix", "no compleix", "no aplica"]
+          },
+          "observacio": {
+            "type": "string",
+            "description": "Text lliure per justificar 'no compleix' o afegir detall."
+          }
+        }
+      }
+    },
+    "_confidence": {
+      "type": "object",
+      "properties": {
+        "titular": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "expedient": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "data_revisio": { "$ref": "../_shared.json#/$defs/Confidence" }
+      }
+    }
+  }
+}
