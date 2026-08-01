@@ -55,15 +55,16 @@ export class GeminiLiveClient {
         ],
       },
       callbacks: {
-        onopen: () => {
-          // La primera cosa: enviem l'opening perquè el model comenci parlant.
-          this.sendText(spec.opening);
-        },
+        // onopen es dispara ABANS que `await connect()` assigni `this.session`,
+        // per això no fem servir la callback per enviar res.
         onmessage: (msg: LiveServerMessage) => this.dispatch(msg, handlers),
         onerror: (err) => handlers.onError(err),
         onclose: () => handlers.onClose(),
       },
     });
+
+    // Enviem l'opening un cop la sessió està assignada.
+    this.session.sendClientContent({ turns: spec.opening });
   }
 
   private dispatch(msg: LiveServerMessage, h: GeminiLiveHandlers): void {
