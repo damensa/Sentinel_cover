@@ -29,15 +29,28 @@ export function ConversationPage() {
 
   useEffect(() => {
     if (!sessionId) return;
+    // React StrictMode munta cada component dues vegades en dev. Aquest flag
+    // ignora esdeveniments de la primera WS (que es tanca de seguida i pot
+    // dispararun 1006) perquè no interfereixin amb la segona (la bona).
+    let cancelled = false;
 
-    const ws = openGatewayWs(sessionId, handleEvent, () => setConnected(true), () => setConnected(false));
+    const ws = openGatewayWs(
+      sessionId,
+      (evt) => { if (!cancelled) handleEvent(evt); },
+      () => { if (!cancelled) setConnected(true); },
+      () => { if (!cancelled) setConnected(false); },
+    );
     wsRef.current = ws;
 
     createRecorder((pcm) => ws.send(pcm))
-      .then((r) => { recRef.current = r; })
-      .catch((e) => setError(`No s'ha pogut activar el micròfon: ${e.message}`));
+      .then((r) => {
+        if (cancelled) { r.destroy().catch(() => {}); return; }
+        recRef.current = r;
+      })
+      .catch((e) => { if (!cancelled) setError(`No s'ha pogut activar el micròfon: ${e.message}`); });
 
     return () => {
+      cancelled = true;
       ws.close();
       wsRef.current = null;
       recRef.current?.destroy().catch(() => {});
