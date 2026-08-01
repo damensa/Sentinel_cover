@@ -66,6 +66,7 @@ export function ConversationPage() {
         break;
       case 'model_text':
         setTranscript((t) => [...t, { who: 'model', text: evt.text, ts: Date.now() }]);
+        speak(evt.text);
         break;
       case 'model_audio':
         // TODO: reproduir a la PWA. De moment ho ignorem — les captions de text
@@ -192,4 +193,16 @@ function formatValue(v: any): string {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'boolean') return v ? 'Sí' : 'No';
   return String(v);
+}
+
+// TTS del navegador (Web Speech API). Fallback silenciós si no hi és.
+function speak(text: string): void {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ca-ES';
+    u.rate = 1.0;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  } catch { /* ignore */ }
 }

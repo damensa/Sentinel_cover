@@ -3,10 +3,16 @@ import { schemaLoader, type DocType, type Region } from '../schemas/loader';
 import { getPromptSpec } from './prompts';
 
 // Model per a la conversa de veu. Es pot sobreescriure amb GEMINI_LIVE_MODEL.
-// - gemini-2.0-flash-live-001: GA estable, half-cascade, function calling OK.
-// - gemini-3.1-flash-live-preview: native-audio. Millor prosòdia però
-//   function calling limitat.
-const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL ?? 'gemini-2.0-flash-live-001';
+// Validat que aquest ID connecta via @google/genai 2.15.
+const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL ?? 'gemini-3.1-flash-live-preview';
+
+// Response modality. AUDIO té function calling molt limitat en aquest model.
+// TEXT dóna function calling fiable (necessitem això per omplir camps).
+// El text de resposta el podem sintetitzar amb TTS del navegador.
+const RESPONSE_MODALITY: Modality =
+  (process.env.GEMINI_RESPONSE_MODALITY?.toUpperCase() as any) === 'AUDIO'
+    ? Modality.AUDIO
+    : Modality.TEXT;
 
 export interface FunctionCallEvent {
   name: string;
@@ -38,12 +44,12 @@ export class GeminiLiveClient {
   ): Promise<void> {
     const spec = getPromptSpec(region, docType);
     const parameters = schemaLoader.bundleForGemini(region, docType);
-    console.log(`[gemini-client] connecting model=${DEFAULT_MODEL} doc=${region}/${docType}`);
+    console.log(`[gemini-client] connecting model=${DEFAULT_MODEL} modality=${RESPONSE_MODALITY} doc=${region}/${docType}`);
 
     const connectPromise = this.ai.live.connect({
       model: DEFAULT_MODEL,
       config: {
-        responseModalities: [Modality.AUDIO],
+        responseModalities: [RESPONSE_MODALITY],
         systemInstruction: spec.systemInstruction,
         tools: [
           {
