@@ -1,6 +1,7 @@
 # Dependency directories
 node_modules/
 jspm_packages/
+whatsapp-bot/dist/
 
 # Large reference PDFs (BOE/UNE/manufacturer manuals)
 BOE-130_Codigo_del_Gas.pdf
@@ -13,6 +14,8 @@ manuals_calderas/
 *_TEST.pdf
 *FILLED_TEST.pdf
 ELEC1_TEST.pdf
+whatsapp-bot/*_filled_*.pdf
+whatsapp-bot/*_filled_*.docx
 
 # Scraping/bot directories
 BOT/

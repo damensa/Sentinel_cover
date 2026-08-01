@@ -25,7 +25,7 @@ export const pdfWorker = new Worker('pdf-generation', async (job: Job) => {
                 pdfPath = await formFiller.fillELEC1PDF(data, region);
                 break;
             case 'elec2':
-                pdfPath = await formFiller.fillElec2PDF(data); // Elec2 is currently generic
+                pdfPath = await formFiller.fillElec2PDF(data, region);
                 break;
             case 'dr':
                 pdfPath = await formFiller.fillDRPDF(data, region);

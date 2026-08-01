@@ -292,7 +292,7 @@ async function handleElec2FormFlow(msg: any, state: UserSession, whatsappId: str
         try {
             await msg.reply(t(lang, 'generating_elec2'));
 
-            const pdfPath = await formFiller.fillElec2PDF(state.data);
+            const pdfPath = await formFiller.fillElec2PDF(state.data, region);
             if (fs.existsSync(pdfPath)) {
                 const media = MessageMedia.fromFilePath(pdfPath);
                 await client.sendMessage(msg.from, media, { caption: "✅ Aquí tens el teu esquema unifilar ELEC2 generat." });

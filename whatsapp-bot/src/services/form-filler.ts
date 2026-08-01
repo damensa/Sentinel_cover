@@ -1,6 +1,7 @@
-import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
+import { PDFDocument, PDFName, rgb, degrees, StandardFonts } from 'pdf-lib';
 import fs from 'fs';
 import path from 'path';
+import * as zlib from 'zlib';
 import { fieldMapper } from './field-mapper';
 
 // ELEC-1 Interface
@@ -152,28 +153,98 @@ export interface DictamenFormData {
 
 export class FormFillerService {
     private profilePath: string;
+    private projectRoot: string;
+    private botRoot: string;
 
     constructor() {
-        this.profilePath = path.join(process.cwd(), 'installer_profile_example.json');
+        this.projectRoot = path.resolve(__dirname, '..', '..', '..');
+        this.botRoot = path.join(this.projectRoot, 'whatsapp-bot');
+        this.profilePath = path.join(this.botRoot, 'installer_profile_example.json');
     }
 
     private getTemplatePath(region: string, filename: string): string {
-        if (region === 'catalunya') {
-            return path.join('C:/Users/dave_/Sentinel cover/Templates/Catalunya', filename);
-        }
-        return path.join('C:/Users/dave_/Sentinel cover/Templates/Arago', filename);
+        const regionDirs: Record<string, string> = {
+            catalunya: 'Catalunya',
+            arago: 'Arago',
+            valencia: 'Comunitat Valenciana',
+            madrid: 'Comunidad de Madrid',
+        };
+        return path.join(this.projectRoot, 'Templates', regionDirs[region] || regionDirs.catalunya, filename);
+    }
+
+    private getOutputPath(filename: string): string {
+        return path.join(this.botRoot, filename);
     }
 
     private loadInstallerProfile(): any {
-        const profilePath = path.join(process.cwd(), 'installer_profile_example.json');
-        if (fs.existsSync(profilePath)) {
-            return JSON.parse(fs.readFileSync(profilePath, 'utf8'));
+        if (fs.existsSync(this.profilePath)) {
+            return JSON.parse(fs.readFileSync(this.profilePath, 'utf8'));
         }
         return null;
     }
 
+    private async fillXfaByTag(sourcePath: string, outputPath: string, data: Record<string, string>): Promise<string> {
+        const pdfDoc = await PDFDocument.load(fs.readFileSync(sourcePath), { ignoreEncryption: true });
+        const acroFormRef = pdfDoc.catalog.get(PDFName.of('AcroForm'));
+        if (!acroFormRef) throw new Error(`AcroForm missing in ${sourcePath}`);
+
+        const acroForm = pdfDoc.context.lookup(acroFormRef) as any;
+        const xfaRef = acroForm.get(PDFName.of('XFA'));
+        if (!xfaRef) throw new Error(`XFA missing in ${sourcePath}`);
+
+        const xfa = pdfDoc.context.lookup(xfaRef) as any;
+        let datasetsIndex = -1;
+        let datasetsRef: any = null;
+        for (let i = 0; i < xfa.size(); i += 2) {
+            const name = String(pdfDoc.context.lookup(xfa.get(i)));
+            if (name.includes('datasets')) {
+                datasetsIndex = i + 1;
+                datasetsRef = xfa.get(i + 1);
+                break;
+            }
+        }
+        if (!datasetsRef || datasetsIndex < 0) throw new Error(`XFA datasets missing in ${sourcePath}`);
+
+        const stream = pdfDoc.context.lookup(datasetsRef) as any;
+        let contents = stream.contents as Buffer;
+        if (!contents) throw new Error(`XFA datasets stream empty in ${sourcePath}`);
+
+        const filter = stream.dict.get(PDFName.of('Filter'));
+        if (filter && String(filter).includes('FlateDecode')) {
+            contents = zlib.inflateSync(contents);
+        }
+
+        let xml = Buffer.from(contents).toString('utf8');
+        const escapeXml = (value: string) =>
+            String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+
+        for (const [tag, rawValue] of Object.entries(data)) {
+            const value = escapeXml(rawValue);
+            const paired = new RegExp(`(<${tag}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tag}>)`, 'g');
+            const selfClosing = new RegExp(`<${tag}([^>]*)/>`, 'g');
+            xml = xml.replace(paired, `$1${value}$3`);
+            xml = xml.replace(selfClosing, `<${tag}$1>${value}</${tag}>`);
+        }
+
+        const newStream = pdfDoc.context.flateStream(xml);
+        xfa.set(datasetsIndex, pdfDoc.context.register(newStream));
+        fs.writeFileSync(outputPath, await pdfDoc.save());
+        return outputPath;
+    }
+
     async fillELEC1PDF(data: Elec1FormData, region: string = 'catalunya'): Promise<string> {
-        const filename = region === 'catalunya' ? 'ELEC1CertificatInstalElectricaBT.pdf' : 'C0004_v3_fillable.pdf';
+        const filenames: Record<string, string> = {
+            catalunya: 'ELEC1_AcroForm.pdf',
+            arago: 'C0004_v3_fillable.pdf',
+            valencia: '23294_BI.pdf',
+            madrid: 'DHHBWA_fillable.pdf',
+        };
+        const filename = filenames[region] || filenames.catalunya;
         const templatePath = this.getTemplatePath(region, filename);
 
         if (!fs.existsSync(templatePath)) throw new Error(`Template not found at ${templatePath}`);
@@ -269,9 +340,9 @@ export class FormFillerService {
                 safetyFill(`${eBase}.NomCognoms[0]`, profile.empresa);
                 safetyFill(`${eBase}.TXT_Rasic[0]`, profile.rasic);
                 safetyFill(`${eBase}.NIF[0]`, profile.nif);
-                safetyFill(`${eBase}.NomCognomsInstalador[0]`, profile.nom_instal·lador);
+                safetyFill(`${eBase}.NomCognomsInstalador[0]`, profile['nom_instal·lador']);
                 safetyFill(`${eBase}.TXT_Categoria[0]`, profile.categoria);
-                safetyFill(`${eBase}.DNIInstallador[0]`, profile.dni_instal·lador);
+                safetyFill(`${eBase}.DNIInstallador[0]`, profile['dni_instal·lador']);
 
                 const eaBase = `${eBase}.sAdreca[0]`;
                 safetyFill(`${eaBase}.TXT_NomVia[0]`, profile.adreca.nom_via);
@@ -325,19 +396,31 @@ export class FormFillerService {
             safetyFill(fieldMapper.getField('madrid', 'DHHBWA_fillable', 'tecnico', 'cups'), data.caracteristiques.cups);
         }
 
-        const outputPath = path.join(process.cwd(), `${region.toUpperCase()}_ELEC1_filled_${Date.now()}.pdf`);
+        const outputPath = this.getOutputPath(`${region.toUpperCase()}_ELEC1_filled_${Date.now()}.pdf`);
         fs.writeFileSync(outputPath, await pdfDoc.save());
         return outputPath;
     }
 
     async fillDRPDF(data: DRFormData, region: string = 'catalunya'): Promise<string> {
-        let filename = 'DeclaracioResponsableInstallatcio.pdf';
+        let filename = 'DeclaracioResponsableInstallacio.pdf';
         if (region === 'arago') filename = 'E0001_v5_fillable.pdf';
         if (region === 'valencia') filename = '23019_BI.pdf';
 
         const templatePath = this.getTemplatePath(region, filename);
 
         if (!fs.existsSync(templatePath)) throw new Error(`Template not found at ${templatePath}`);
+        if (region === 'catalunya') {
+            return this.fillXfaByTag(templatePath, this.getOutputPath(`${region.toUpperCase()}_DR_filled_${Date.now()}.pdf`), {
+                TXT_Nom: data.titular.nom,
+                TXT_NumID: data.titular.nif,
+                TIPUS_VIA: data.adreca.tipusVia || '',
+                RB_TipusInstalacio: data.installacio.tipus,
+                TXT_CampReglamentari: data.installacio.campReglamentari,
+                TXT_NumCUPS: data.installacio.cups,
+                RB_TipusPersona: data.declarant.tipusPersona === 'TIT' ? '1' : '2',
+            });
+        }
+
         const pdfDoc = await PDFDocument.load(fs.readFileSync(templatePath));
         const form = pdfDoc.getForm();
         const safetyFill = (f: string | null, v: any) => {
@@ -384,7 +467,7 @@ export class FormFillerService {
             safetyFill(fieldMapper.getField('valencia', '23019_BI', 'firma', 'lloc'), 'Valencia');
         }
 
-        const outputPath = path.join(process.cwd(), `${region.toUpperCase()}_DR_filled_${Date.now()}.pdf`);
+        const outputPath = this.getOutputPath(`${region.toUpperCase()}_DR_filled_${Date.now()}.pdf`);
         fs.writeFileSync(outputPath, await pdfDoc.save());
         return outputPath;
     }
@@ -454,10 +537,10 @@ export class FormFillerService {
             safetyFill('correu electrònic_2', profile.adreca?.correu);
             safetyFill('RASIC', profile.rasic);
             safetyFill('Categoria', profile.categoria);
-            safetyFill('I en el seu nom i representació_2', profile.nom_instal·lador);
+            safetyFill('I en el seu nom i representació_2', profile['nom_instal·lador']);
             safetyFill('NIF_2', profile.nif);        // Mapping NIF_2 to the installer's NIF
-            safetyFill('DNI_2', profile.dni_instal·lador);
-            safetyFill('Catalunya i amb Certificat de Competència Professional amb núm DNI', profile.dni_instal·lador);
+            safetyFill('DNI_2', profile['dni_instal·lador']);
+            safetyFill('Catalunya i amb Certificat de Competència Professional amb núm DNI', profile['dni_instal·lador']);
             // Some specific fields don't have exact profile matches but we can try
             // "Modalitat", "amb Pòlissa de RC"
             safetyFill('amb Pòlissa de RC', "Sí");
@@ -469,14 +552,14 @@ export class FormFillerService {
         safetyFill('MES', data.data.mes);
         safetyFill('de 20', data.data.any);
 
-        const outputPath = path.join(process.cwd(), `${region.toUpperCase()}_ContracteBT_filled_${Date.now()}.pdf`);
+        const outputPath = this.getOutputPath(`${region.toUpperCase()}_ContracteBT_filled_${Date.now()}.pdf`);
         fs.writeFileSync(outputPath, await pdfDoc.save());
         return outputPath;
     }
 
-    async fillElec2PDF(data: Elec2FormData): Promise<string> {
+    async fillElec2PDF(data: Elec2FormData, region: string = 'catalunya'): Promise<string> {
         console.log('Filling ELEC-2 PDF with dynamic drawing...');
-        const templatePath = path.join(process.cwd(), 'EsquemaUnifilarELEC2.pdf');
+        const templatePath = this.getTemplatePath(region, 'EsquemaUnifilarELEC2.pdf');
         const pdfDoc = await PDFDocument.load(fs.readFileSync(templatePath));
         const page = pdfDoc.getPage(0);
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -516,7 +599,7 @@ export class FormFillerService {
             drawText(c.diferencial, 360, currentY, 8);
         });
 
-        const outputPath = path.join(process.cwd(), `ELEC2_filled_${Date.now()}.pdf`);
+        const outputPath = this.getOutputPath(`ELEC2_filled_${Date.now()}.pdf`);
         fs.writeFileSync(outputPath, await pdfDoc.save());
         return outputPath;
     }
@@ -574,7 +657,7 @@ export class FormFillerService {
             compression: "DEFLATE",
         });
 
-        const outputPath = path.join(process.cwd(), `ELEC3_filled_${Date.now()}.docx`);
+        const outputPath = this.getOutputPath(`ELEC3_filled_${Date.now()}.docx`);
         fs.writeFileSync(outputPath, buf);
         return outputPath;
     }
@@ -647,7 +730,7 @@ export class FormFillerService {
             compression: "DEFLATE",
         });
 
-        const outputPath = path.join(process.cwd(), `DICTAMEN_filled_${Date.now()}.docx`);
+        const outputPath = this.getOutputPath(`DICTAMEN_filled_${Date.now()}.docx`);
         fs.writeFileSync(outputPath, buf);
         return outputPath;
     }
