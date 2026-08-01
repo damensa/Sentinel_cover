@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
+import cors from 'cors';
 import { WebSocketServer, type WebSocket } from 'ws';
 import http from 'http';
 import type { AddressInfo } from 'net';
@@ -12,7 +13,14 @@ import { schemaLoader, type DocType, type Region } from '../schemas/loader';
 const PORT = Number(process.env.GATEWAY_PORT ?? 3001);
 const API_KEY = process.env.GEMINI_API_KEY;
 
+// Origen(s) autoritzat(s) per CORS. Per defecte accepta els ports de dev de
+// Vite (5173) i preview (4173). A producció, defineix CORS_ORIGIN al .env.
+const CORS_ORIGIN = (process.env.CORS_ORIGIN ?? 'http://localhost:5173,http://localhost:4173')
+  .split(',')
+  .map((s) => s.trim());
+
 const app = express();
+app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
 
 app.get('/health', (_req, res) => {

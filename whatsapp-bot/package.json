@@ -19,6 +19,7 @@
         "ajv-formats": "^2.1.1",
         "better-sqlite3": "^12.6.2",
         "bullmq": "^5.70.4",
+        "cors": "^2.8.6",
         "docxtemplater": "^3.68.3",
         "dotenv": "^17.2.3",
         "express": "^5.2.1",
@@ -36,6 +37,7 @@
     },
     "devDependencies": {
         "@types/better-sqlite3": "^7.6.13",
+        "@types/cors": "^2.8.19",
         "@types/express": "^5.0.6",
         "@types/ioredis": "^4.28.10",
         "@types/node": "^20.0.0",

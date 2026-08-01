@@ -2,6 +2,8 @@
 node_modules/
 jspm_packages/
 whatsapp-bot/dist/
+pwa/dist/
+pwa/dev-dist/
 
 # Large reference PDFs (BOE/UNE/manufacturer manuals)
 BOE-130_Codigo_del_Gas.pdf
