@@ -57,7 +57,29 @@ export class GeminiLiveClient {
       callbacks: {
         // onopen es dispara ABANS que `await connect()` assigni `this.session`,
         // per això no fem servir la callback per enviar res.
-        onmessage: (msg: LiveServerMessage) => this.dispatch(msg, handlers),
+        onmessage: (msg: LiveServerMessage) => {
+          if (process.env.GATEWAY_DEBUG_GEMINI === '1') {
+            const kinds: string[] = [];
+            const m = msg as any;
+            if (m.setupComplete) kinds.push('setupComplete');
+            if (m.toolCall) kinds.push(`toolCall(${m.toolCall.functionCalls?.length ?? 0})`);
+            if (m.toolCallCancellation) kinds.push('toolCallCancellation');
+            if (m.serverContent) {
+              const sc = m.serverContent;
+              const parts: string[] = [];
+              if (sc.modelTurn?.parts) {
+                for (const p of sc.modelTurn.parts) {
+                  if (p.text) parts.push(`text(${p.text.length})`);
+                  if (p.inlineData) parts.push(`inline(${p.inlineData.mimeType})`);
+                  if (p.functionCall) parts.push('functionCall(inline!)');
+                }
+              }
+              kinds.push(`serverContent{${parts.join(',')}${sc.turnComplete ? ',turnComplete' : ''}${sc.interrupted ? ',interrupted' : ''}}`);
+            }
+            console.log(`[gemini raw]`, kinds.join(' '));
+          }
+          this.dispatch(msg, handlers);
+        },
         onerror: (err) => handlers.onError(err),
         onclose: () => handlers.onClose(),
       },
@@ -82,6 +104,15 @@ export class GeminiLiveClient {
         if (part.text) h.onModelText(part.text);
         if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('audio/')) {
           h.onModelAudio(part.inlineData.data);
+        }
+        // Alguns models emeten function_call inline dins modelTurn.parts en
+        // comptes de al top-level toolCall. Ho tractem igual.
+        if (part.functionCall) {
+          h.onFunctionCall({
+            name: part.functionCall.name ?? '',
+            args: part.functionCall.args,
+            callId: (part.functionCall as any).id,
+          });
         }
       }
     }
