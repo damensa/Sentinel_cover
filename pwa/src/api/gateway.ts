@@ -56,7 +56,12 @@ export function openGatewayWs(
   ws.binaryType = 'arraybuffer';
 
   ws.addEventListener('open', () => onOpen?.());
-  ws.addEventListener('close', () => onClose?.());
+  ws.addEventListener('close', (ev) => {
+    if (ev.code !== 1000 && ev.code !== 1005) {
+      onEvent({ type: 'error', message: `WS close ${ev.code}: ${ev.reason || '(sense motiu)'}` });
+    }
+    onClose?.();
+  });
   ws.addEventListener('message', (ev) => {
     if (typeof ev.data !== 'string') return; // no binary from server
     try {
@@ -65,7 +70,7 @@ export function openGatewayWs(
       /* ignore */
     }
   });
-  ws.addEventListener('error', () => onEvent({ type: 'error', message: 'WS error' }));
+  ws.addEventListener('error', () => onEvent({ type: 'error', message: 'WS error (mira consola del navegador)' }));
 
   return {
     send: (buf) => {

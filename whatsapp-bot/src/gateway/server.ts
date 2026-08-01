@@ -83,13 +83,21 @@ async function handleClient(ws: WebSocket, sessionId: string): Promise<void> {
   if (!session) return;
 
   const gemini = new GeminiLiveClient(API_KEY);
+  let ready = false;
+  const audioBuffer: string[] = [];
+  const MAX_BUFFER = 200;
 
   ws.on('message', (data, isBinary) => {
     if (isBinary) {
       const b64 = (data as Buffer).toString('base64');
+      if (!ready) {
+        if (audioBuffer.length < MAX_BUFFER) audioBuffer.push(b64);
+        return;
+      }
       try {
         gemini.sendAudio(b64);
       } catch (e) {
+        console.error('[gateway] sendAudio:', (e as Error).message);
         sendEvent(ws, { type: 'error', message: `sendAudio: ${(e as Error).message}` });
       }
       return;
@@ -99,27 +107,44 @@ async function handleClient(ws: WebSocket, sessionId: string): Promise<void> {
     try { parsed = JSON.parse((data as Buffer).toString('utf8')); }
     catch { return; }
     if (parsed?.type === 'text' && typeof parsed.text === 'string') {
+      if (!ready) return; // el text que arribi abans es descarta (no crític)
       gemini.sendText(parsed.text);
     }
   });
 
   ws.on('close', () => gemini.close());
-  ws.on('error', () => gemini.close());
-
-  await gemini.connect(session.region, session.docType, {
-    onFunctionCall: ({ name, args, callId }) => {
-      const partial = (args ?? {}) as Record<string, any>;
-      const updated = sessionStore.mergeFields(sessionId, partial);
-      sendEvent(ws, { type: 'field_update', fields: updated?.fields ?? partial, delta: partial });
-      // Responem al function_call perquè Gemini pugui continuar la conversa.
-      gemini.sendFunctionResponse(callId, name, { ok: true });
-    },
-    onModelText: (text) => sendEvent(ws, { type: 'model_text', text }),
-    onModelAudio: (base64) => sendEvent(ws, { type: 'model_audio', data: base64 }),
-    onTurnComplete: () => sendEvent(ws, { type: 'turn_complete' }),
-    onError: (err) => sendEvent(ws, { type: 'error', message: String((err as any)?.message ?? err) }),
-    onClose: () => sendEvent(ws, { type: 'session_end' }),
+  ws.on('error', (e) => {
+    console.error('[gateway] WS error:', (e as Error).message);
+    gemini.close();
   });
+
+  try {
+    await gemini.connect(session.region, session.docType, {
+      onFunctionCall: ({ name, args, callId }) => {
+        const partial = (args ?? {}) as Record<string, any>;
+        const updated = sessionStore.mergeFields(sessionId, partial);
+        sendEvent(ws, { type: 'field_update', fields: updated?.fields ?? partial, delta: partial });
+        gemini.sendFunctionResponse(callId, name, { ok: true });
+      },
+      onModelText: (text) => sendEvent(ws, { type: 'model_text', text }),
+      onModelAudio: (base64) => sendEvent(ws, { type: 'model_audio', data: base64 }),
+      onTurnComplete: () => sendEvent(ws, { type: 'turn_complete' }),
+      onError: (err) => {
+        console.error('[gateway] Gemini error:', err);
+        sendEvent(ws, { type: 'error', message: String((err as any)?.message ?? err) });
+      },
+      onClose: () => sendEvent(ws, { type: 'session_end' }),
+    });
+    ready = true;
+    // Drenem el buffer d'àudio que s'havia acumulat mentre esperàvem Gemini.
+    console.log(`[gateway] Gemini connectat; drenant ${audioBuffer.length} chunks bufferitzats`);
+    for (const b64 of audioBuffer) gemini.sendAudio(b64);
+    audioBuffer.length = 0;
+  } catch (e) {
+    console.error('[gateway] gemini.connect failed:', (e as Error).message);
+    sendEvent(ws, { type: 'error', message: `connect: ${(e as Error).message}` });
+    ws.close();
+  }
 }
 
 function sendEvent(ws: WebSocket, evt: Record<string, any>): void {
