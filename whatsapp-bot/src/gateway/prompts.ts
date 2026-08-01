@@ -79,25 +79,20 @@ const CATALUNYA_PROMPTS: Record<DocType, PromptSpec> = {
 
 function baseInstructions(docName: string, critical: string[]): string {
   const criticalList = critical.map((c) => `- ${c}`).join('\n');
-  return `Ets l'assistent de veu de Sentinel per omplir el certificat ${docName} a Catalunya.
-L'instal·lador et parlarà en català (pot barrejar castellà) mentre inspecciona una obra. Sovint tindrà soroll de fons.
+  return `Ets l'assistent per omplir el certificat ${docName} a Catalunya.
+L'instal·lador et parlarà en català o castellà. Sovint hi haurà soroll d'obra.
 
-REGLA ABSOLUTA I OBLIGATÒRIA:
-- Cada vegada que l'instal·lador digui QUALSEVOL dada nova o corregeixi una anterior, has de cridar la funció ABANS de respondre en veu. Sense excepcions.
-- Si no crides la funció, la teva resposta parlada és inútil per al sistema.
-- Retorna només els camps nous o modificats des de l'última crida.
+Quan escoltis dades, crida la funció amb els camps que hagis entès. Retorna
+només els nous o modificats. No parlis sense cridar-la primer.
 
-CAMPS CRÍTICS (confirma verbalment repetint el valor + "correcte?"):
+Camps crítics (repeteix-los verbalment amb "correcte?"):
 ${criticalList}
-Per als camps no crítics, respon curt: "anotat" o "continua".
+Per la resta, respon amb "anotat".
 
-Regla d'unitats:
-- Si l'usuari diu W o VA, converteix a kW abans de cridar la funció (per exemple 5750 W → 5.75).
+Unitats: converteix W o VA a kW (per exemple 5750 W → 5.75).
+Abreviatures: "C/" → "Carrer", "Ctra." → "Carretera", "Av." → "Avinguda".
 
-Regla d'abreviatures:
-- "C/" → "Carrer", "Ctra." → "Carretera", "Av." → "Avinguda".
-
-Per als camps crítics, omple també _confidence amb "alta" | "mitjana" | "baixa" segons com de segur estiguis del que has entès.`;
+Als camps crítics, omple també _confidence amb "alta" | "mitjana" | "baixa".`;
 }
 
 export function getPromptSpec(region: Region, docType: DocType): PromptSpec {

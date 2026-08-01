@@ -53,7 +53,18 @@ export class GeminiLiveClient {
             ],
           },
         ],
-      },
+        // Force AUTO mode: el model decideix quan cridar la funció, però
+        // llista d'allowedFunctionNames afavoreix el reconeixement.
+        toolConfig: {
+          functionCallingConfig: {
+            mode: 'AUTO' as any,
+            allowedFunctionNames: [spec.fnName],
+          },
+        },
+        // Transcripció de l'àudio d'entrada. Permet diagnosticar què entén
+        // realment Gemini del que diu l'instal·lador.
+        inputAudioTranscription: {},
+      } as any,
       callbacks: {
         // onopen es dispara ABANS que `await connect()` assigni `this.session`,
         // per això no fem servir la callback per enviar res.
@@ -97,6 +108,12 @@ export class GeminiLiveClient {
       for (const fc of tc.functionCalls) {
         h.onFunctionCall({ name: fc.name, args: fc.args, callId: fc.id });
       }
+    }
+
+    if (sc?.inputTranscription?.text) {
+      // Reutilitzem onModelText per fer arribar la transcripció a la UI;
+      // el gateway sap distingir-ho si vol.
+      console.log(`[gemini transcription in] ${sc.inputTranscription.text}`);
     }
 
     if (sc?.modelTurn?.parts) {
