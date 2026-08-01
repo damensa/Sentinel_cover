@@ -2,7 +2,7 @@
 
 Branca: `feature/pwa-veu-instalador`
 Data d'inici: 2026-07-31
-Estat: **disseny**, sense codi encara.
+Estat: **concepte validat 2026-08-01**, implementació en curs (§11).
 
 Aquest document recull totes les decisions preses durant la conversa de disseny sobre com afegir un canal de veu interactiu al projecte Sentinel, perquè l'instal·lador pugui omplir els PDFs parlant en comptes d'escriure per WhatsApp.
 
@@ -210,3 +210,24 @@ whatsapp-bot/src/schemas/
 - [`MAPPING_STATUS.md`](MAPPING_STATUS.md) — quins PDFs estan mapejats per comunitat.
 - [`low_cost_scaling_guide.md.resolved`](low_cost_scaling_guide.md.resolved) — pla d'escalat (SQLite, Docker, cues, Hetzner) al qual encaixa aquest disseny.
 - [`field_map.json`](field_map.json) — mapping de codis interns per ELEC1 Catalunya, base per a la traducció valor humà → codi PDF.
+- [`AI_STUDIO_TEST_ELEC1.md`](AI_STUDIO_TEST_ELEC1.md) — protocol de validació manual del concepte al playground de Google AI Studio.
+- [`ai-studio-bundles/elec1.functions.json`](ai-studio-bundles/elec1.functions.json) — declaració de funció bundlejada llesta per enganxar al playground.
+
+## 11. Validació del concepte (2026-08-01)
+
+Prova feta al playground **Real-time** de Google AI Studio.
+
+- Model: `gemini-3.1-flash-live-preview`.
+- Veu: Zephyr.
+- Configuració clau: `Function calling` ON, `Automatic Function Response` ON, `Thinking level` no-Minimal.
+- Script: [`AI_STUDIO_TEST_ELEC1.md`](AI_STUDIO_TEST_ELEC1.md), frases 1-5.
+
+Resultat: totes les crides a `save_elec1_fields` van retornar un JSON estructuralment vàlid amb tots els camps esperats. Els punts crítics (NIF, CUPS, potència, adreça) van sortir tots amb `_confidence: "alta"`. La conversió d'unitats (5750 W → 5.75 kW) va funcionar. La correcció al vol del CUPS (afegir prefix "ES") i del cognom (Garcia amb G) va aplicar-se sense duplicar camps.
+
+**Tres matisos detectats a tenir en compte a la implementació:**
+
+1. **Normalització d'ortografia**: Gemini va escriure "García" amb accent castellà tot i que l'usuari va dir "Garcia" en català. Cal decidir política a `mapHumanToPdfCodes`: respectar el que ha dit l'instal·lador o normalitzar segons la llengua del formulari.
+2. **Ordinals**: "3r 2a" va sortir com "Tercer" / "Segona". Si el PDF vol la forma abreujada ("3r", "2a"), ho farà el mapper.
+3. **Confirmació verbal dels camps crítics**: el system prompt actual no és prou emfàtic. Per a producció, canviar les instruccions perquè Gemini repeteixi valor + "correcte?" per titular, NIF, CUPS, potència i adreça.
+
+Cap dels tres és bloquejant per començar a implementar.
