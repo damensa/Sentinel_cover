@@ -94,6 +94,8 @@ export function ConversationPage() {
     if (!recRef.current || !recording) return;
     recRef.current.stop();
     setRecording(false);
+    // Signal a Gemini que hem acabat el torn perquè processi l'àudio.
+    wsRef.current?.sendAudioStreamEnd();
   }
 
   function goReview() {

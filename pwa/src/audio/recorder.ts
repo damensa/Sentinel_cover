@@ -2,11 +2,16 @@
 // format que Gemini Live espera).
 
 const TARGET_RATE = 16000;
+// Acumulem ~100ms d'àudio per WS frame (1600 mostres a 16kHz = 3200 bytes).
+// Enviar chunks massa petits (128 mostres/frame de l'AudioWorklet) satura
+// el WS i pot despistar la VAD de Gemini.
+const CHUNK_SAMPLES = 1600;
 
 export interface Recorder {
   start: () => Promise<void>;
   stop: () => void;
   isActive: () => boolean;
+  sampleRate: () => number;
   destroy: () => Promise<void>;
 }
 
@@ -22,38 +27,57 @@ export async function createRecorder(
     },
   });
 
-  // AudioContext a 16kHz. La majoria de navegadors moderns respecten aquest
-  // sampleRate; si el hardware no ho suporta, el navegador el negocia i
-  // toca resamplejar. De moment ho deixem senzill i confiem en 16kHz nadiu.
   const ctx = new AudioContext({ sampleRate: TARGET_RATE });
   await ctx.audioWorklet.addModule('/pcm-worklet.js');
   const source = ctx.createMediaStreamSource(stream);
   const worklet = new AudioWorkletNode(ctx, 'pcm-processor');
 
   let active = false;
+  let acc: Int16Array[] = [];
+  let accSize = 0;
+
+  function flushBuffer(): void {
+    if (accSize === 0) return;
+    const out = new Int16Array(accSize);
+    let o = 0;
+    for (const c of acc) {
+      out.set(c, o);
+      o += c.length;
+    }
+    onChunk(out.buffer);
+    acc = [];
+    accSize = 0;
+  }
 
   worklet.port.onmessage = (evt) => {
     if (!active) return;
-    onChunk(evt.data as ArrayBuffer);
+    const chunk = new Int16Array(evt.data as ArrayBuffer);
+    acc.push(chunk);
+    accSize += chunk.length;
+    if (accSize >= CHUNK_SAMPLES) flushBuffer();
   };
 
   source.connect(worklet);
-  // No connectem el worklet a ctx.destination (evita eco).
 
-  // El ctx pot començar en estat 'suspended' en algun navegador.
-  if (ctx.state === 'suspended') {
-    await ctx.resume();
-  }
+  if (ctx.state === 'suspended') await ctx.resume();
+
+  console.log(
+    `[recorder] AudioContext sampleRate=${ctx.sampleRate} Hz (objectiu ${TARGET_RATE})`,
+  );
 
   return {
     start: async () => {
       if (ctx.state === 'suspended') await ctx.resume();
       active = true;
+      acc = [];
+      accSize = 0;
     },
     stop: () => {
       active = false;
+      flushBuffer();
     },
     isActive: () => active,
+    sampleRate: () => ctx.sampleRate,
     destroy: async () => {
       active = false;
       worklet.disconnect();
@@ -62,8 +86,4 @@ export async function createRecorder(
       await ctx.close();
     },
   };
-}
-
-export function getSampleRateInfo(): string {
-  return `objectiu ${TARGET_RATE} Hz`;
 }

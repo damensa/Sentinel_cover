@@ -96,6 +96,11 @@ export class GeminiLiveClient {
     });
   }
 
+  sendAudioStreamEnd(): void {
+    if (!this.session) throw new Error('Session not connected');
+    this.session.sendRealtimeInput({ audioStreamEnd: true });
+  }
+
   sendText(text: string): void {
     if (!this.session) throw new Error('Session not connected');
     this.session.sendClientContent({ turns: text });

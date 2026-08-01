@@ -42,6 +42,7 @@ export type GatewayEvent =
 export interface GatewayWs {
   send: (audioPcm16k: ArrayBuffer) => void;
   sendText: (text: string) => void;
+  sendAudioStreamEnd: () => void;
   close: () => void;
 }
 
@@ -78,6 +79,9 @@ export function openGatewayWs(
     },
     sendText: (text) => {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'text', text }));
+    },
+    sendAudioStreamEnd: () => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'audio_stream_end' }));
     },
     close: () => ws.close(),
   };

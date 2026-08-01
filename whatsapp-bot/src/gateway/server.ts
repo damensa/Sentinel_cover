@@ -86,10 +86,18 @@ async function handleClient(ws: WebSocket, sessionId: string): Promise<void> {
   let ready = false;
   const audioBuffer: string[] = [];
   const MAX_BUFFER = 200;
+  let audioChunkCount = 0;
+  let audioByteCount = 0;
 
   ws.on('message', (data, isBinary) => {
     if (isBinary) {
-      const b64 = (data as Buffer).toString('base64');
+      const buf = data as Buffer;
+      audioChunkCount++;
+      audioByteCount += buf.length;
+      if (audioChunkCount === 1 || audioChunkCount % 20 === 0) {
+        console.log(`[gateway] àudio in: ${audioChunkCount} chunks, ${audioByteCount} bytes`);
+      }
+      const b64 = buf.toString('base64');
       if (!ready) {
         if (audioBuffer.length < MAX_BUFFER) audioBuffer.push(b64);
         return;
@@ -107,8 +115,17 @@ async function handleClient(ws: WebSocket, sessionId: string): Promise<void> {
     try { parsed = JSON.parse((data as Buffer).toString('utf8')); }
     catch { return; }
     if (parsed?.type === 'text' && typeof parsed.text === 'string') {
-      if (!ready) return; // el text que arribi abans es descarta (no crític)
+      if (!ready) return;
+      console.log(`[gateway] text in: ${parsed.text.slice(0, 60)}`);
       gemini.sendText(parsed.text);
+    } else if (parsed?.type === 'audio_stream_end') {
+      console.log(`[gateway] audio_stream_end (torn tancat, ${audioChunkCount} chunks totals aquest torn)`);
+      audioChunkCount = 0;
+      audioByteCount = 0;
+      if (ready) {
+        try { gemini.sendAudioStreamEnd(); }
+        catch (e) { console.error('[gateway] sendAudioStreamEnd:', (e as Error).message); }
+      }
     }
   });
 
@@ -121,14 +138,21 @@ async function handleClient(ws: WebSocket, sessionId: string): Promise<void> {
   try {
     await gemini.connect(session.region, session.docType, {
       onFunctionCall: ({ name, args, callId }) => {
+        console.log(`[gateway] Gemini function_call ${name}:`, JSON.stringify(args).slice(0, 200));
         const partial = (args ?? {}) as Record<string, any>;
         const updated = sessionStore.mergeFields(sessionId, partial);
         sendEvent(ws, { type: 'field_update', fields: updated?.fields ?? partial, delta: partial });
         gemini.sendFunctionResponse(callId, name, { ok: true });
       },
-      onModelText: (text) => sendEvent(ws, { type: 'model_text', text }),
+      onModelText: (text) => {
+        console.log(`[gateway] Gemini text: ${text.slice(0, 80)}`);
+        sendEvent(ws, { type: 'model_text', text });
+      },
       onModelAudio: (base64) => sendEvent(ws, { type: 'model_audio', data: base64 }),
-      onTurnComplete: () => sendEvent(ws, { type: 'turn_complete' }),
+      onTurnComplete: () => {
+        console.log('[gateway] Gemini turn_complete');
+        sendEvent(ws, { type: 'turn_complete' });
+      },
       onError: (err) => {
         console.error('[gateway] Gemini error:', err);
         sendEvent(ws, { type: 'error', message: String((err as any)?.message ?? err) });
