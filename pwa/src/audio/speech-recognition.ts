@@ -45,6 +45,7 @@ export function createSpeechRecognition(
 
   let active = false;
   let finalBuffer = '';
+  let lastInterim = '';
 
   rec.onstart = () => console.log('[speech] onstart (escoltant)');
   rec.onaudiostart = () => console.log('[speech] onaudiostart');
@@ -64,6 +65,7 @@ export function createSpeechRecognition(
         interim += text;
       }
     }
+    lastInterim = interim;
     const partial = (finalBuffer + ' ' + interim).trim();
     if (partial) onResult(partial, false);
   };
@@ -76,12 +78,17 @@ export function createSpeechRecognition(
   };
 
   rec.onend = () => {
-    console.log(`[speech] onend, finalBuffer="${finalBuffer}"`);
+    console.log(`[speech] onend, finalBuffer="${finalBuffer}", lastInterim="${lastInterim}"`);
     active = false;
-    if (finalBuffer) {
-      onResult(finalBuffer, true);
-      finalBuffer = '';
+    // Chrome sovint tanca sense marcar isFinal=true si l'usuari deixa anar
+    // ràpid amb PTT. Si tenim interim però no final, tractem l'interim com
+    // el final.
+    const combined = (finalBuffer + ' ' + lastInterim).trim();
+    if (combined) {
+      onResult(combined, true);
     }
+    finalBuffer = '';
+    lastInterim = '';
   };
 
   return {
@@ -91,6 +98,7 @@ export function createSpeechRecognition(
         return;
       }
       finalBuffer = '';
+      lastInterim = '';
       try {
         rec.start();
         active = true;
