@@ -36,12 +36,13 @@ export function createSpeechRecognition(
 
   const rec = new Ctor();
   rec.lang = lang;
-  // continuous=false: mode dictat una-frase-a-cop, retorna resultat quan
-  // detecta pausa. Millor combinació amb el PTT que continuous=true.
-  rec.continuous = false;
+  // continuous=true: Chrome segueix escoltant fins que li diem stop.
+  // El fallback de lastInterim a onend garanteix que no perdem el text
+  // encara que Chrome no marqui cap resultat com isFinal.
+  rec.continuous = true;
   rec.interimResults = true;
   rec.maxAlternatives = 1;
-  console.log(`[speech] instància creada, lang=${lang}, continuous=false`);
+  console.log(`[speech] instància creada, lang=${lang}, continuous=true`);
 
   let active = false;
   let finalBuffer = '';
