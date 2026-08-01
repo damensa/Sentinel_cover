@@ -112,6 +112,15 @@ export function ConversationPage() {
     nav(`/review/${sessionId}`, { state: { fields } });
   }
 
+  const [manualText, setManualText] = useState('');
+  function sendManual() {
+    const t = manualText.trim();
+    if (!t || !wsRef.current) return;
+    setTranscript((tt) => [...tt, { who: 'user', text: t, ts: Date.now() }]);
+    wsRef.current.sendText(t);
+    setManualText('');
+  }
+
   return (
     <div className="page">
       <h1>Conversa <small>parla amb Sentinel</small></h1>
@@ -150,6 +159,22 @@ export function ConversationPage() {
       </div>
 
       {error && <p className="error-msg">{error}</p>}
+
+      <div className="card">
+        <label>O escriu (fallback si el mic no capta bé)</label>
+        <div className="row">
+          <input
+            type="text"
+            value={manualText}
+            onChange={(e) => setManualText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') sendManual(); }}
+            placeholder="p.ex. El titular és Joan Garcia Puig amb DNI 46789012M"
+          />
+          <button className="btn" onClick={sendManual} disabled={!connected || !manualText.trim()}>
+            Envia
+          </button>
+        </div>
+      </div>
 
       <div className="ptt-wrap">
         <button
