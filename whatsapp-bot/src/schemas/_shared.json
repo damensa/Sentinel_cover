@@ -1,0 +1,79 @@
+{
+  "$id": "https://sentinel.local/schemas/_shared.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "NIF": {
+      "type": "string",
+      "pattern": "^[0-9A-Z]{8,9}[A-Z]?$",
+      "description": "NIF (8 dígits + lletra) o NIE (X/Y/Z + 7 dígits + lletra)."
+    },
+    "CUPS": {
+      "type": "string",
+      "pattern": "^ES[0-9]{16}[A-Z]{2}[0-9A-Z]{0,2}$",
+      "description": "Codi CUPS. ES + 16 dígits + 2 lletres (+ opcional 2 caràcters de subministrament)."
+    },
+    "Telefon": {
+      "type": "string",
+      "pattern": "^\\+?[0-9 ]{9,15}$"
+    },
+    "CodiPostal": {
+      "type": "string",
+      "pattern": "^[0-9]{5}$"
+    },
+    "Confidence": {
+      "type": "string",
+      "enum": ["alta", "mitjana", "baixa"]
+    },
+    "Persona": {
+      "type": "object",
+      "required": ["nom_complet", "nif"],
+      "properties": {
+        "nom_complet": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Nom i cognoms tal com surten al DNI."
+        },
+        "nif": { "$ref": "#/$defs/NIF" },
+        "telefon": { "$ref": "#/$defs/Telefon" },
+        "email": { "type": "string", "format": "email" },
+        "tipus_persona": { "type": "string", "enum": ["física", "jurídica"] }
+      }
+    },
+    "Emplacament": {
+      "type": "object",
+      "required": ["nom_via", "num_via", "poblacio", "codi_postal"],
+      "properties": {
+        "tipus_via": {
+          "type": "string",
+          "enum": [
+            "Carrer",
+            "Avinguda",
+            "Passeig",
+            "Plaça",
+            "Ronda",
+            "Camí",
+            "Carretera",
+            "Travessia",
+            "Urbanització",
+            "Polígon",
+            "Altra"
+          ],
+          "description": "Si l'usuari diu 'C/' assumeix 'Carrer'; 'Ctra.' → 'Carretera'. Per valors fora d'enum, retorna 'Altra' i posa el detall a nom_via."
+        },
+        "nom_via": { "type": "string" },
+        "num_via": {
+          "type": "string",
+          "description": "Pot contenir lletra o s/n."
+        },
+        "bloc": { "type": "string" },
+        "escala": { "type": "string" },
+        "pis": { "type": "string" },
+        "porta": { "type": "string" },
+        "codi_postal": { "$ref": "#/$defs/CodiPostal" },
+        "poblacio": { "type": "string" },
+        "comarca": { "type": "string" },
+        "provincia": { "type": "string" }
+      }
+    }
+  }
+}

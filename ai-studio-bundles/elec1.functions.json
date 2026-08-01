@@ -1,0 +1,86 @@
+[{
+  "name": "save_elec1_fields",
+  "description": "Guarda o actualitza els camps del certificat ELEC1 amb el que l'instal·lador ha dit. Cada crida ha de contenir només els camps nous o modificats des de l'última crida.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "titular": {
+        "type": "object",
+        "description": "Persona titular de la instal·lació.",
+        "properties": {
+          "nom_complet": { "type": "string", "description": "Nom i cognoms tal com surten al DNI." },
+          "nif": { "type": "string", "description": "NIF (8 dígits + lletra) o NIE (X/Y/Z + 7 dígits + lletra)." },
+          "telefon": { "type": "string" },
+          "email": { "type": "string" }
+        }
+      },
+      "emplacament": {
+        "type": "object",
+        "description": "Adreça de la instal·lació.",
+        "properties": {
+          "tipus_via": {
+            "type": "string",
+            "enum": ["Carrer", "Avinguda", "Passeig", "Plaça", "Ronda", "Camí", "Carretera", "Travessia", "Urbanització", "Polígon", "Altra"]
+          },
+          "nom_via": { "type": "string" },
+          "num_via": { "type": "string", "description": "Pot contenir lletra o s/n." },
+          "bloc": { "type": "string" },
+          "escala": { "type": "string" },
+          "pis": { "type": "string" },
+          "porta": { "type": "string" },
+          "codi_postal": { "type": "string", "description": "5 dígits." },
+          "poblacio": { "type": "string" },
+          "comarca": { "type": "string" },
+          "provincia": { "type": "string" }
+        }
+      },
+      "instalacio": {
+        "type": "object",
+        "description": "Característiques tècniques.",
+        "properties": {
+          "cups": { "type": "string", "description": "Codi CUPS de 22 caràcters, comença per ES." },
+          "potencia_kw": { "type": "number", "description": "Potència contractada en kW." },
+          "tensio": { "type": "string", "enum": ["230 V", "3x230/400 V", "Altra"] },
+          "material_conductor": { "type": "string", "enum": ["Coure", "Alumini"] },
+          "ubicacio_comptadors": { "type": "string", "enum": ["Sala", "Armari", "Altra"] },
+          "tipus_connexio": { "type": "string", "enum": ["Assistida", "Interconnectada"] },
+          "categoria": { "type": "string", "enum": ["Bàsica", "Especialista"] },
+          "us": {
+            "type": "string",
+            "enum": [
+              "Instal·lacions industrials",
+              "Instal·lacions temporals per a obres",
+              "Instal·lacions d'enllaç",
+              "Instal·lacions de serveis comuns d'edificis",
+              "Instal·lacions d'habitatges",
+              "Locals d'espectacles",
+              "Locals de reunió/treball/sanitaris",
+              "Recàrrega de vehicles elèctrics",
+              "Aparcaments",
+              "Enllumenat exterior",
+              "Generadores per autoconsum",
+              "Oficines sense públic",
+              "Generadores",
+              "Altres usos"
+            ]
+          },
+          "subministrament_complementari": { "type": "boolean" }
+        }
+      },
+      "_confidence": {
+        "type": "object",
+        "description": "Nivell de confiança per als camps crítics. La UI marca en groc/vermell tot el que no sigui 'alta'.",
+        "properties": {
+          "nom_complet": { "type": "string", "enum": ["alta", "mitjana", "baixa"] },
+          "nif": { "type": "string", "enum": ["alta", "mitjana", "baixa"] },
+          "cups": { "type": "string", "enum": ["alta", "mitjana", "baixa"] },
+          "potencia_kw": { "type": "string", "enum": ["alta", "mitjana", "baixa"] },
+          "nom_via": { "type": "string", "enum": ["alta", "mitjana", "baixa"] },
+          "num_via": { "type": "string", "enum": ["alta", "mitjana", "baixa"] },
+          "poblacio": { "type": "string", "enum": ["alta", "mitjana", "baixa"] },
+          "codi_postal": { "type": "string", "enum": ["alta", "mitjana", "baixa"] }
+        }
+      }
+    }
+  }
+}]

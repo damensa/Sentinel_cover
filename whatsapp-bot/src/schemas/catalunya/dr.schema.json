@@ -1,0 +1,41 @@
+{
+  "$id": "https://sentinel.local/schemas/catalunya/dr.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DR_Catalunya",
+  "type": "object",
+  "required": ["titular", "declarant", "adreca", "installacio"],
+  "properties": {
+    "titular": { "$ref": "../_shared.json#/$defs/Persona" },
+    "declarant": {
+      "$ref": "../_shared.json#/$defs/Persona",
+      "description": "Qui signa la declaració. Sovint el mateix instal·lador."
+    },
+    "adreca": { "$ref": "../_shared.json#/$defs/Emplacament" },
+    "installacio": {
+      "type": "object",
+      "required": ["tipus", "cups"],
+      "properties": {
+        "tipus": {
+          "type": "string",
+          "description": "Tipus d'instal·lació segons ITC-BT (ex. 'Habitatge', 'Local comercial')."
+        },
+        "camp_reglamentari": {
+          "type": "string",
+          "description": "Referència reglamentària (ITC-BT-XX)."
+        },
+        "cups": { "$ref": "../_shared.json#/$defs/CUPS" }
+      }
+    },
+    "_confidence": {
+      "type": "object",
+      "properties": {
+        "titular_nom": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "titular_nif": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "declarant_nom": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "declarant_nif": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "cups": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "adreca": { "$ref": "../_shared.json#/$defs/Confidence" }
+      }
+    }
+  }
+}

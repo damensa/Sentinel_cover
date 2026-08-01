@@ -1,0 +1,83 @@
+{
+  "$id": "https://sentinel.local/schemas/catalunya/elec2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ELEC2_Esquema_Unifilar_Catalunya",
+  "type": "object",
+  "required": ["general", "circuits"],
+  "properties": {
+    "general": {
+      "type": "object",
+      "required": ["titular", "emplacament", "tensio", "potencia_contractada_kw"],
+      "properties": {
+        "empresa": {
+          "type": "string",
+          "description": "Empresa instal·ladora."
+        },
+        "titular": {
+          "type": "string",
+          "description": "Nom del titular (curt, cap a la caixa d'ELEC2)."
+        },
+        "emplacament": {
+          "type": "string",
+          "description": "Adreça en una sola línia (ex. 'Av. Diagonal 340, 08037 Barcelona')."
+        },
+        "tensio": {
+          "type": "string",
+          "enum": ["230 V", "3x230/400 V", "Altra"]
+        },
+        "seccio_conexio_mm2": {
+          "type": "number",
+          "description": "Secció del conductor de connexió en mm²."
+        },
+        "iga_a": {
+          "type": "number",
+          "description": "Calibre de l'IGA en ampers."
+        },
+        "potencia_contractada_kw": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 500
+        }
+      }
+    },
+    "circuits": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Un ítem per circuit derivat. L'instal·lador els pot dictar en veu ('circuit 1 il·luminació 500 W, secció 1.5, PIA 10, diferencial 30 mA').",
+      "items": {
+        "type": "object",
+        "required": ["receptor", "potencia", "seccio", "pia"],
+        "properties": {
+          "receptor": {
+            "type": "string",
+            "description": "Ex. 'Il·luminació', 'Endolls', 'Cuina', 'Rentadora'."
+          },
+          "potencia": {
+            "type": "string",
+            "description": "Potència en W o kW segons ho digui."
+          },
+          "seccio": {
+            "type": "string",
+            "description": "Secció del cable en mm²."
+          },
+          "pia": {
+            "type": "string",
+            "description": "Calibre del PIA en A."
+          },
+          "diferencial": {
+            "type": "string",
+            "description": "Sensibilitat del diferencial (ex. '30 mA')."
+          }
+        }
+      }
+    },
+    "_confidence": {
+      "type": "object",
+      "properties": {
+        "titular": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "potencia_contractada_kw": { "$ref": "../_shared.json#/$defs/Confidence" },
+        "emplacament": { "$ref": "../_shared.json#/$defs/Confidence" }
+      }
+    }
+  }
+}
