@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { openGatewayWs, type GatewayEvent, type GatewayWs } from '../api/gateway';
-import { createRecorder, type Recorder } from '../audio/recorder';
+import { createSpeechRecognition, type SpeechRec } from '../audio/speech-recognition';
 
 interface Bubble {
   who: 'user' | 'model';
@@ -22,16 +22,14 @@ export function ConversationPage() {
   const [recording, setRecording] = useState(false);
   const [fields, setFields] = useState<Record<string, any>>({});
   const [transcript, setTranscript] = useState<Bubble[]>([]);
+  const [interim, setInterim] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<GatewayWs | null>(null);
-  const recRef = useRef<Recorder | null>(null);
+  const speechRef = useRef<SpeechRec | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
-    // React StrictMode munta cada component dues vegades en dev. Aquest flag
-    // ignora esdeveniments de la primera WS (que es tanca de seguida i pot
-    // dispararun 1006) perquè no interfereixin amb la segona (la bona).
     let cancelled = false;
 
     const ws = openGatewayWs(
@@ -42,19 +40,30 @@ export function ConversationPage() {
     );
     wsRef.current = ws;
 
-    createRecorder((pcm) => ws.send(pcm))
-      .then((r) => {
-        if (cancelled) { r.destroy().catch(() => {}); return; }
-        recRef.current = r;
-      })
-      .catch((e) => { if (!cancelled) setError(`No s'ha pogut activar el micròfon: ${e.message}`); });
+    const rec = createSpeechRecognition(
+      'ca-ES',
+      (text, isFinal) => {
+        if (cancelled) return;
+        setInterim(text);
+        if (isFinal && text) {
+          setInterim('');
+          setTranscript((t) => [...t, { who: 'user', text, ts: Date.now() }]);
+          ws.sendText(text);
+        }
+      },
+      (msg) => { if (!cancelled) setError(msg); },
+    );
+    speechRef.current = rec;
+    if (!rec.isSupported()) {
+      setError("El teu navegador no suporta Speech Recognition. Prova amb Chrome o Edge.");
+    }
 
     return () => {
       cancelled = true;
       ws.close();
       wsRef.current = null;
-      recRef.current?.destroy().catch(() => {});
-      recRef.current = null;
+      rec.stop();
+      speechRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
@@ -69,14 +78,13 @@ export function ConversationPage() {
         speak(evt.text);
         break;
       case 'model_audio':
-        // TODO: reproduir a la PWA. De moment ho ignorem — les captions de text
-        // del `model_text` sovint no vénen en àudio-primer, però és el proper pas.
+        // El model també respon amb àudio; per ara ho ignorem, TTS del navegador
+        // s'encarrega de reproduir la resposta a partir del text (si arriba).
         break;
       case 'turn_complete':
         break;
       case 'error':
         setError(evt.message);
-        // Sessió invalidada (per exemple, el gateway s'ha reiniciat) → tornem a Selecció.
         if (evt.message.startsWith('WS close 1006')) {
           setTimeout(() => nav('/', { replace: true }), 1500);
         }
@@ -84,19 +92,17 @@ export function ConversationPage() {
     }
   }
 
-  async function pttDown() {
-    if (!recRef.current || recording) return;
-    await recRef.current.start();
+  function pttDown() {
+    if (!speechRef.current || recording) return;
+    setInterim('');
+    speechRef.current.start();
     setRecording(true);
-    setTranscript((t) => [...t, { who: 'user', text: '…', ts: Date.now() }]);
   }
 
   function pttUp() {
-    if (!recRef.current || !recording) return;
-    recRef.current.stop();
+    if (!speechRef.current || !recording) return;
+    speechRef.current.stop();
     setRecording(false);
-    // Signal a Gemini que hem acabat el torn perquè processi l'àudio.
-    wsRef.current?.sendAudioStreamEnd();
   }
 
   function goReview() {
@@ -117,13 +123,21 @@ export function ConversationPage() {
       <div className="card">
         <label>Conversa</label>
         <div className="transcript">
-          {transcript.length === 0 && <p className="page-sub">Prem "Parla" i digues la primera dada.</p>}
+          {transcript.length === 0 && !interim && (
+            <p className="page-sub">Prem "Parla", digues la dada, i deixa anar.</p>
+          )}
           {transcript.map((b, i) => (
             <div key={i} className={`bubble ${b.who}`}>
               <span className="who">{b.who === 'user' ? 'Tu' : 'Sentinel'}</span>
               {b.text}
             </div>
           ))}
+          {interim && (
+            <div className="bubble user" style={{ opacity: 0.6 }}>
+              <span className="who">Tu (interpretant…)</span>
+              {interim}
+            </div>
+          )}
         </div>
       </div>
 
@@ -195,7 +209,6 @@ function formatValue(v: any): string {
   return String(v);
 }
 
-// TTS del navegador (Web Speech API). Fallback silenciós si no hi és.
 function speak(text: string): void {
   if (typeof window === 'undefined' || !window.speechSynthesis) return;
   try {

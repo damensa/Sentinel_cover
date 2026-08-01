@@ -3,16 +3,15 @@ import { schemaLoader, type DocType, type Region } from '../schemas/loader';
 import { getPromptSpec } from './prompts';
 
 // Model per a la conversa de veu. Es pot sobreescriure amb GEMINI_LIVE_MODEL.
-// Validat que aquest ID connecta via @google/genai 2.15.
+// Validat que aquest ID connecta via @google/genai 2.15 i que emet
+// function calls fiablement quan l'input és TEXT.
 const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL ?? 'gemini-3.1-flash-live-preview';
 
-// Response modality. AUDIO té function calling molt limitat en aquest model.
-// TEXT dóna function calling fiable (necessitem això per omplir camps).
-// El text de resposta el podem sintetitzar amb TTS del navegador.
-const RESPONSE_MODALITY: Modality =
-  (process.env.GEMINI_RESPONSE_MODALITY?.toUpperCase() as any) === 'AUDIO'
-    ? Modality.AUDIO
-    : Modality.TEXT;
+// Els models Live només accepten AUDIO com a response modality; TEXT hi
+// fa timeout al connect. Per això la PWA transcriu la veu al navegador
+// (Speech Recognition) i envia TEXT via sendText — el camí que dispara
+// els function calls de manera fiable.
+const RESPONSE_MODALITY = Modality.AUDIO;
 
 export interface FunctionCallEvent {
   name: string;
