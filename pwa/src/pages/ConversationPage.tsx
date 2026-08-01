@@ -62,6 +62,10 @@ export function ConversationPage() {
         break;
       case 'error':
         setError(evt.message);
+        // Sessió invalidada (per exemple, el gateway s'ha reiniciat) → tornem a Selecció.
+        if (evt.message.startsWith('WS close 1006')) {
+          setTimeout(() => nav('/', { replace: true }), 1500);
+        }
         break;
     }
   }
