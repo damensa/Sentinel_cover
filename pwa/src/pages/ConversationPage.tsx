@@ -40,8 +40,11 @@ export function ConversationPage() {
     );
     wsRef.current = ws;
 
+    // Llengua per defecte català; es pot forçar amb ?lang=xx-XX per proves
+    // (per exemple ?lang=en-US o ?lang=es-ES).
+    const urlLang = new URLSearchParams(window.location.hash.split('?')[1] ?? window.location.search).get('lang');
     const rec = createSpeechRecognition(
-      'ca-ES',
+      urlLang ?? 'ca-ES',
       (text, isFinal) => {
         if (cancelled) return;
         setInterim(text);

@@ -36,9 +36,12 @@ export function createSpeechRecognition(
 
   const rec = new Ctor();
   rec.lang = lang;
-  rec.continuous = true;
+  // continuous=false: mode dictat una-frase-a-cop, retorna resultat quan
+  // detecta pausa. Millor combinació amb el PTT que continuous=true.
+  rec.continuous = false;
   rec.interimResults = true;
-  console.log(`[speech] instància creada, lang=${lang}`);
+  rec.maxAlternatives = 1;
+  console.log(`[speech] instància creada, lang=${lang}, continuous=false`);
 
   let active = false;
   let finalBuffer = '';
