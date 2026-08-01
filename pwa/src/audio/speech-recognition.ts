@@ -24,6 +24,7 @@ export function createSpeechRecognition(
 ): SpeechRec {
   const w = window as WindowWithSpeech;
   const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  console.log('[speech] Ctor disponible?', !!Ctor, 'webkit:', !!w.webkitSpeechRecognition, 'standard:', !!w.SpeechRecognition);
   if (!Ctor) {
     return {
       start: () => onError?.('SpeechRecognition no disponible en aquest navegador'),
@@ -37,9 +38,16 @@ export function createSpeechRecognition(
   rec.lang = lang;
   rec.continuous = true;
   rec.interimResults = true;
+  console.log(`[speech] instància creada, lang=${lang}`);
 
   let active = false;
   let finalBuffer = '';
+
+  rec.onstart = () => console.log('[speech] onstart (escoltant)');
+  rec.onaudiostart = () => console.log('[speech] onaudiostart');
+  rec.onspeechstart = () => console.log('[speech] onspeechstart');
+  rec.onspeechend = () => console.log('[speech] onspeechend');
+  rec.onaudioend = () => console.log('[speech] onaudioend');
 
   rec.onresult = (ev: any) => {
     let interim = '';
@@ -48,6 +56,7 @@ export function createSpeechRecognition(
       const text = r[0]?.transcript ?? '';
       if (r.isFinal) {
         finalBuffer += (finalBuffer ? ' ' : '') + text.trim();
+        console.log(`[speech] final: "${text}"`);
       } else {
         interim += text;
       }
@@ -58,11 +67,13 @@ export function createSpeechRecognition(
 
   rec.onerror = (ev: any) => {
     const msg = String(ev?.error ?? 'unknown');
+    console.log(`[speech] onerror: ${msg}`, ev);
     if (msg === 'no-speech' || msg === 'aborted') return;
     onError?.(`speech-recognition: ${msg}`);
   };
 
   rec.onend = () => {
+    console.log(`[speech] onend, finalBuffer="${finalBuffer}"`);
     active = false;
     if (finalBuffer) {
       onResult(finalBuffer, true);
@@ -72,17 +83,23 @@ export function createSpeechRecognition(
 
   return {
     start: () => {
-      if (active) return;
+      if (active) {
+        console.log('[speech] start ignored (ja actiu)');
+        return;
+      }
       finalBuffer = '';
       try {
         rec.start();
         active = true;
+        console.log('[speech] start() cridat');
       } catch (e) {
+        console.error('[speech] start error', e);
         onError?.(`start: ${(e as Error).message}`);
       }
     },
     stop: () => {
       if (!active) return;
+      console.log('[speech] stop() cridat');
       try { rec.stop(); } catch { /* ignore */ }
     },
     isSupported: () => true,
