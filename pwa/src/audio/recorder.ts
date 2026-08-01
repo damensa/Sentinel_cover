@@ -49,9 +49,21 @@ export async function createRecorder(
     accSize = 0;
   }
 
+  let maxAmpSinceStart = 0;
+  let chunksSinceStart = 0;
+
   worklet.port.onmessage = (evt) => {
     if (!active) return;
     const chunk = new Int16Array(evt.data as ArrayBuffer);
+    // Level meter: pic màxim d'aquest sub-chunk (normalitzat a 0..1)
+    for (let i = 0; i < chunk.length; i++) {
+      const a = Math.abs(chunk[i]);
+      if (a > maxAmpSinceStart) maxAmpSinceStart = a;
+    }
+    chunksSinceStart++;
+    if (chunksSinceStart % 40 === 0) {
+      console.log(`[recorder] pic normalitzat: ${(maxAmpSinceStart / 32768).toFixed(3)} (0=silenci, 1=màxim)`);
+    }
     acc.push(chunk);
     accSize += chunk.length;
     if (accSize >= CHUNK_SAMPLES) flushBuffer();
@@ -71,10 +83,13 @@ export async function createRecorder(
       active = true;
       acc = [];
       accSize = 0;
+      maxAmpSinceStart = 0;
+      chunksSinceStart = 0;
     },
     stop: () => {
       active = false;
       flushBuffer();
+      console.log(`[recorder] torn acabat: pic màxim ${(maxAmpSinceStart / 32768).toFixed(3)}${maxAmpSinceStart < 500 ? ' ← MOLT BAIXA, el mic possiblement està en silenci' : ''}`);
     },
     isActive: () => active,
     sampleRate: () => ctx.sampleRate,

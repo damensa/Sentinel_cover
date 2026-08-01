@@ -88,6 +88,8 @@ async function handleClient(ws: WebSocket, sessionId: string): Promise<void> {
   const MAX_BUFFER = 200;
   let audioChunkCount = 0;
   let audioByteCount = 0;
+  let modelAudioChunks = 0;
+  let modelAudioBytes = 0;
 
   ws.on('message', (data, isBinary) => {
     if (isBinary) {
@@ -148,7 +150,14 @@ async function handleClient(ws: WebSocket, sessionId: string): Promise<void> {
         console.log(`[gateway] Gemini text: ${text.slice(0, 80)}`);
         sendEvent(ws, { type: 'model_text', text });
       },
-      onModelAudio: (base64) => sendEvent(ws, { type: 'model_audio', data: base64 }),
+      onModelAudio: (base64) => {
+        modelAudioChunks++;
+        modelAudioBytes += Math.floor((base64.length * 3) / 4);
+        if (modelAudioChunks === 1 || modelAudioChunks % 20 === 0) {
+          console.log(`[gateway] Gemini àudio out: ${modelAudioChunks} chunks, ${modelAudioBytes} bytes`);
+        }
+        sendEvent(ws, { type: 'model_audio', data: base64 });
+      },
       onTurnComplete: () => {
         console.log('[gateway] Gemini turn_complete');
         sendEvent(ws, { type: 'turn_complete' });
