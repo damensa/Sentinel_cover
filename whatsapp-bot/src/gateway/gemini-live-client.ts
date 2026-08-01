@@ -3,11 +3,10 @@ import { schemaLoader, type DocType, type Region } from '../schemas/loader';
 import { getPromptSpec } from './prompts';
 
 // Model per a la conversa de veu. Es pot sobreescriure amb GEMINI_LIVE_MODEL.
-// - gemini-live-2.5-flash-preview: half-cascade (àudio→text→LLM→TTS). Suport
-//   robust de function calling. Recomanat per aquest cas.
+// - gemini-2.0-flash-live-001: GA estable, half-cascade, function calling OK.
 // - gemini-3.1-flash-live-preview: native-audio. Millor prosòdia però
 //   function calling limitat.
-const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL ?? 'gemini-live-2.5-flash-preview';
+const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL ?? 'gemini-2.0-flash-live-001';
 
 export interface FunctionCallEvent {
   name: string;
@@ -39,8 +38,9 @@ export class GeminiLiveClient {
   ): Promise<void> {
     const spec = getPromptSpec(region, docType);
     const parameters = schemaLoader.bundleForGemini(region, docType);
+    console.log(`[gemini-client] connecting model=${DEFAULT_MODEL} doc=${region}/${docType}`);
 
-    this.session = await this.ai.live.connect({
+    const connectPromise = this.ai.live.connect({
       model: DEFAULT_MODEL,
       config: {
         responseModalities: [Modality.AUDIO],
@@ -56,14 +56,6 @@ export class GeminiLiveClient {
             ],
           },
         ],
-        // Force AUTO mode: el model decideix quan cridar la funció, però
-        // llista d'allowedFunctionNames afavoreix el reconeixement.
-        toolConfig: {
-          functionCallingConfig: {
-            mode: 'AUTO' as any,
-            allowedFunctionNames: [spec.fnName],
-          },
-        },
         // Transcripció de l'àudio d'entrada. Permet diagnosticar què entén
         // realment Gemini del que diu l'instal·lador.
         inputAudioTranscription: {},
@@ -103,6 +95,11 @@ export class GeminiLiveClient {
     // enviar un turn "de l'usuari" abans que l'usuari parli pot contaminar
     // el context i afavorir la modalitat conversacional per sobre del
     // function calling. L'usuari inicia parlant.
+    const timeout = new Promise<never>((_, rej) =>
+      setTimeout(() => rej(new Error(`connect timeout (10s) — el model ${DEFAULT_MODEL} no respon`)), 10000),
+    );
+    this.session = await Promise.race([connectPromise, timeout]);
+    console.log(`[gemini-client] connected`);
     void spec;
   }
 
