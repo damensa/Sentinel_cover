@@ -3,8 +3,11 @@ import { schemaLoader, type DocType, type Region } from '../schemas/loader';
 import { getPromptSpec } from './prompts';
 
 // Model per a la conversa de veu. Es pot sobreescriure amb GEMINI_LIVE_MODEL.
-// El validat al 2026-08-01 és 'gemini-3.1-flash-live-preview' (AI Studio).
-const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL ?? 'gemini-3.1-flash-live-preview';
+// - gemini-live-2.5-flash-preview: half-cascade (àudio→text→LLM→TTS). Suport
+//   robust de function calling. Recomanat per aquest cas.
+// - gemini-3.1-flash-live-preview: native-audio. Millor prosòdia però
+//   function calling limitat.
+const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL ?? 'gemini-live-2.5-flash-preview';
 
 export interface FunctionCallEvent {
   name: string;
@@ -96,8 +99,11 @@ export class GeminiLiveClient {
       },
     });
 
-    // Enviem l'opening un cop la sessió està assignada.
-    this.session.sendClientContent({ turns: spec.opening });
+    // Nota: no enviem opening automàticament. Amb half-cascade/native-audio,
+    // enviar un turn "de l'usuari" abans que l'usuari parli pot contaminar
+    // el context i afavorir la modalitat conversacional per sobre del
+    // function calling. L'usuari inicia parlant.
+    void spec;
   }
 
   private dispatch(msg: LiveServerMessage, h: GeminiLiveHandlers): void {
