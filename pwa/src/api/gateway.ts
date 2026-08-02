@@ -21,13 +21,30 @@ export async function createSession(
   return res.json();
 }
 
-export async function submitSession(
-  sessionId: string,
-): Promise<{ ok: boolean; fields: any; errors?: any[] }> {
+export interface GeneratedDocument {
+  docType: DocType;
+  filename: string;
+  downloadUrl: string;
+}
+
+export interface SubmitResponse {
+  ok: boolean;
+  fields: any;
+  errors?: any[];
+  documents?: GeneratedDocument[];
+  error?: string;
+}
+
+export async function submitSession(sessionId: string): Promise<SubmitResponse> {
   const res = await fetch(`${GATEWAY_URL}/session/${sessionId}/submit`, {
     method: 'POST',
   });
   return res.json();
+}
+
+/** Converteix el downloadUrl relatiu que retorna el gateway en URL absoluta. */
+export function documentUrl(relativeUrl: string): string {
+  return `${GATEWAY_URL}${relativeUrl}`;
 }
 
 // Events que el gateway envia via WS. Coincideix amb el que emet server.ts.

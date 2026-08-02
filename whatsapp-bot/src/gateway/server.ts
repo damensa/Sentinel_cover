@@ -8,6 +8,7 @@ import http from 'http';
 import type { AddressInfo } from 'net';
 import { GeminiLiveClient } from './gemini-live-client';
 import { sessionStore } from './session-store';
+import { generateDocuments } from './document-generator';
 import { schemaLoader, type DocType, type Region } from '../schemas/loader';
 
 const PORT = Number(process.env.GATEWAY_PORT ?? 3001);
@@ -37,16 +38,44 @@ app.post('/session', (req, res) => {
   res.json({ sessionId: s.id, wsUrl: `/ws/${s.id}` });
 });
 
-// POST /session/:id/submit → valida i retorna el JSON acumulat (integració amb
-// FormFillerService vindrà en un pas posterior).
-app.post('/session/:id/submit', (req, res) => {
+// POST /session/:id/submit → valida el JSON acumulat i genera els documents
+// amb el FormFillerService que ja fa servir el bot de WhatsApp.
+app.post('/session/:id/submit', async (req, res) => {
   const s = sessionStore.get(req.params.id);
   if (!s) return res.status(404).json({ error: 'session not found' });
+
   const v = schemaLoader.validate(s.region, s.docType, s.fields);
   if (!v.valid) {
     return res.status(422).json({ ok: false, errors: v.errors, fields: s.fields });
   }
-  res.json({ ok: true, fields: s.fields });
+
+  try {
+    const docs = await generateDocuments(s.region, s.docType, s.fields);
+    sessionStore.setDocuments(s.id, docs.map(({ filename, absolutePath }) => ({ filename, absolutePath })));
+    console.log(`[gateway] generats ${docs.length} document(s) per ${s.id}: ${docs.map((d) => d.filename).join(', ')}`);
+    res.json({
+      ok: true,
+      fields: s.fields,
+      documents: docs.map((d) => ({
+        docType: d.docType,
+        filename: d.filename,
+        downloadUrl: `/session/${s.id}/document/${encodeURIComponent(d.filename)}`,
+      })),
+    });
+  } catch (e) {
+    const message = (e as Error).message;
+    console.error('[gateway] generateDocuments:', message);
+    const notSupported = (e as Error).name === 'DocumentNotSupportedError';
+    res.status(notSupported ? 501 : 500).json({ ok: false, fields: s.fields, error: message });
+  }
+});
+
+// GET /session/:id/document/:filename → descarrega un PDF generat.
+// Només serveix fitxers registrats a la sessió, mai una ruta arbitrària.
+app.get('/session/:id/document/:filename', (req, res) => {
+  const doc = sessionStore.findDocument(req.params.id, req.params.filename);
+  if (!doc) return res.status(404).json({ error: 'document not found' });
+  res.download(doc.absolutePath, doc.filename);
 });
 
 const server = http.createServer(app);

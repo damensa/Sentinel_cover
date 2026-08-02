@@ -1,39 +1,69 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { submitSession } from '../api/gateway';
+import { submitSession, documentUrl, type SubmitResponse } from '../api/gateway';
 
-type State = 'sending' | 'ok' | 'invalid' | 'error';
+type State = 'sending' | 'ok' | 'invalid' | 'unsupported' | 'error';
 
 export function SubmitPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const nav = useNavigate();
   const [state, setState] = useState<State>('sending');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<SubmitResponse | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
     submitSession(sessionId)
       .then((r) => {
         setResult(r);
-        setState(r.ok ? 'ok' : 'invalid');
+        if (r.ok) setState('ok');
+        else if (r.errors) setState('invalid');
+        else setState('unsupported');
       })
       .catch((e) => {
-        setResult({ error: e.message });
+        setResult({ ok: false, fields: null, error: e.message });
         setState('error');
       });
   }, [sessionId]);
 
+  const title =
+    state === 'sending' ? 'Generant…'
+    : state === 'ok' ? 'Documents llestos'
+    : state === 'invalid' ? 'Falten dades'
+    : state === 'unsupported' ? 'Document no suportat encara'
+    : 'Error';
+
   return (
     <div className="page">
-      <h1>{state === 'sending' ? 'Enviant…' : state === 'ok' ? 'Enviat ✓' : 'Revisió necessària'}</h1>
+      <h1>{title}</h1>
 
-      {state === 'sending' && <p className="page-sub">Validant el JSON contra l'schema…</p>}
+      {state === 'sending' && <p className="page-sub">Validant les dades i omplint el PDF…</p>}
 
       {state === 'ok' && (
         <>
-          <p className="ok-msg">La sessió {sessionId} passa la validació. Aviat es connectarà al FormFillerService per generar els PDFs.</p>
+          <p className="ok-msg">Les dades passen la validació i el document s'ha generat.</p>
+
           <div className="card">
-            <label>JSON validat</label>
+            <label>Descarrega</label>
+            {(result?.documents ?? []).map((d) => (
+              <div className="field-row" key={d.filename}>
+                <span className="field-key">{d.docType.toUpperCase()}</span>
+                <a
+                  className="btn"
+                  href={documentUrl(d.downloadUrl)}
+                  download={d.filename}
+                  style={{ textDecoration: 'none' }}
+                >
+                  Baixa el PDF
+                </a>
+              </div>
+            ))}
+            {(result?.documents ?? []).length === 0 && (
+              <p className="page-sub">El servidor no ha retornat cap document.</p>
+            )}
+          </div>
+
+          <div className="card">
+            <label>Dades utilitzades</label>
             <pre className="json">{JSON.stringify(result?.fields, null, 2)}</pre>
           </div>
         </>
@@ -43,7 +73,7 @@ export function SubmitPage() {
         <>
           <p className="error-msg">Hi ha camps que no compleixen l'schema. Torna a la conversa per completar-los.</p>
           <div className="card">
-            <label>Errors</label>
+            <label>Què falta</label>
             <pre className="json">{JSON.stringify(result?.errors, null, 2)}</pre>
           </div>
           <div className="card">
@@ -53,9 +83,17 @@ export function SubmitPage() {
         </>
       )}
 
-      {state === 'error' && (
-        <p className="error-msg">Error de xarxa: {result?.error}</p>
+      {state === 'unsupported' && (
+        <>
+          <p className="error-msg">{result?.error}</p>
+          <div className="card">
+            <label>Dades recollides (es poden reaprofitar)</label>
+            <pre className="json">{JSON.stringify(result?.fields, null, 2)}</pre>
+          </div>
+        </>
       )}
+
+      {state === 'error' && <p className="error-msg">Error de xarxa: {result?.error}</p>}
 
       <div className="row" style={{ marginTop: 16 }}>
         <button className="btn secondary" onClick={() => nav(`/conversation/${sessionId}`)}>← Torna a la conversa</button>

@@ -1,6 +1,11 @@
 import { randomUUID } from 'crypto';
 import type { DocType, Region } from '../schemas/loader';
 
+export interface GeneratedDocRef {
+  filename: string;
+  absolutePath: string;
+}
+
 export interface SessionState {
   id: string;
   region: Region;
@@ -8,6 +13,9 @@ export interface SessionState {
   createdAt: number;
   // Estat acumulat dels camps que Gemini ha omplert (deep-merged de cada function_call).
   fields: Record<string, any>;
+  // Documents generats en fer submit. Serveix de whitelist per a la descàrrega:
+  // només es pot baixar el que s'ha registrat aquí.
+  documents: GeneratedDocRef[];
 }
 
 class SessionStore {
@@ -20,6 +28,7 @@ class SessionStore {
       docType,
       createdAt: Date.now(),
       fields: {},
+      documents: [],
     };
     this.sessions.set(s.id, s);
     return s;
@@ -27,6 +36,16 @@ class SessionStore {
 
   get(id: string): SessionState | undefined {
     return this.sessions.get(id);
+  }
+
+  setDocuments(id: string, docs: GeneratedDocRef[]): void {
+    const s = this.sessions.get(id);
+    if (s) s.documents = docs;
+  }
+
+  /** Retorna el document només si està registrat en aquesta sessió. */
+  findDocument(id: string, filename: string): GeneratedDocRef | undefined {
+    return this.sessions.get(id)?.documents.find((d) => d.filename === filename);
   }
 
   mergeFields(id: string, partial: Record<string, any>): SessionState | undefined {
