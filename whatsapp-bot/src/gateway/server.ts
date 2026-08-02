@@ -1,8 +1,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 import { WebSocketServer, type WebSocket } from 'ws';
 import http from 'http';
 import type { AddressInfo } from 'net';
@@ -14,8 +16,14 @@ import { schemaLoader, type DocType, type Region } from '../schemas/loader';
 const PORT = Number(process.env.GATEWAY_PORT ?? 3001);
 const API_KEY = process.env.GEMINI_API_KEY;
 
+// Token compartit per exposar el servei a Internet sense obrir la clau de
+// Gemini a qualsevol. Sense token → l'accés és lliure (mode dev local). Amb
+// token, cal enviar-lo per header 'x-sentinel-token' o query 'token=…'.
+const ACCESS_TOKEN = process.env.GATEWAY_ACCESS_TOKEN ?? '';
+
 // Origen(s) autoritzat(s) per CORS. Per defecte accepta els ports de dev de
-// Vite (5173) i preview (4173). A producció, defineix CORS_ORIGIN al .env.
+// Vite (5173) i preview (4173). Quan la PWA i el gateway van al mateix origen
+// (producció amb static serving), el CORS deixa de ser rellevant.
 const CORS_ORIGIN = (process.env.CORS_ORIGIN ?? 'http://localhost:5173,http://localhost:4173')
   .split(',')
   .map((s) => s.trim());
@@ -24,12 +32,23 @@ const app = express();
 app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
 
+// Middleware d'autenticació. Comprova el token compartit per als endpoints
+// que gasten quota de Gemini o donen accés a documents.
+function requireToken(req: Request, res: Response, next: NextFunction) {
+  if (!ACCESS_TOKEN) return next();
+  const provided = String(req.get('x-sentinel-token') ?? req.query.token ?? '');
+  if (provided !== ACCESS_TOKEN) {
+    return res.status(403).json({ error: 'forbidden: token invàlid o absent' });
+  }
+  next();
+}
+
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, hasKey: !!API_KEY, port: PORT });
+  res.json({ ok: true, hasKey: !!API_KEY, hasToken: !!ACCESS_TOKEN, port: PORT });
 });
 
 // POST /session { region, docType } → { sessionId, wsUrl }
-app.post('/session', (req, res) => {
+app.post('/session', requireToken, (req, res) => {
   const { region, docType } = req.body ?? {};
   if (!isRegion(region) || !isDocType(docType)) {
     return res.status(400).json({ error: "region i docType requerits" });
@@ -40,8 +59,8 @@ app.post('/session', (req, res) => {
 
 // POST /session/:id/submit → valida el JSON acumulat i genera els documents
 // amb el FormFillerService que ja fa servir el bot de WhatsApp.
-app.post('/session/:id/submit', async (req, res) => {
-  const s = sessionStore.get(req.params.id);
+app.post('/session/:id/submit', requireToken, async (req, res) => {
+  const s = sessionStore.get(String(req.params.id));
   if (!s) return res.status(404).json({ error: 'session not found' });
 
   const v = schemaLoader.validate(s.region, s.docType, s.fields);
@@ -72,21 +91,61 @@ app.post('/session/:id/submit', async (req, res) => {
 
 // GET /session/:id/document/:filename → descarrega un PDF generat.
 // Només serveix fitxers registrats a la sessió, mai una ruta arbitrària.
-app.get('/session/:id/document/:filename', (req, res) => {
-  const doc = sessionStore.findDocument(req.params.id, req.params.filename);
+app.get('/session/:id/document/:filename', requireToken, (req, res) => {
+  const doc = sessionStore.findDocument(String(req.params.id), String(req.params.filename));
   if (!doc) return res.status(404).json({ error: 'document not found' });
   res.download(doc.absolutePath, doc.filename);
 });
+
+// Serveix la PWA compilada des del mateix origen. Simplifica el desplegament
+// (un sol port, un sol certificat, zero CORS) i és el requisit per exposar
+// el servei a Internet.
+//
+// La ruta cap a `pwa/dist/` funciona tant en dev (executant amb ts-node des de
+// `whatsapp-bot/src/gateway/`) com en build (dist/gateway/). Es pot forçar
+// una altra ubicació amb PWA_DIST_PATH al .env.
+const pwaDistPath = process.env.PWA_DIST_PATH ??
+  path.resolve(__dirname, '..', '..', '..', 'pwa', 'dist');
+if (fs.existsSync(path.join(pwaDistPath, 'index.html'))) {
+  app.use(express.static(pwaDistPath));
+  // SPA fallback: qualsevol GET no capturat abans → index.html. La PWA usa
+  // HashRouter, així que amb '/' n'hi ha prou, però ens curem en salut.
+  // (Express 5 no accepta app.get('*') → fem servir un middleware final.)
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    if (
+      req.path.startsWith('/session') ||
+      req.path.startsWith('/ws') ||
+      req.path === '/health'
+    ) {
+      return next();
+    }
+    res.sendFile(path.join(pwaDistPath, 'index.html'));
+  });
+  console.log(`[gateway] serving PWA from ${pwaDistPath}`);
+} else {
+  console.log(`[gateway] PWA no compilada a ${pwaDistPath}; el gateway serveix només l'API`);
+}
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
 server.on('upgrade', (req, socket, head) => {
   const url = req.url ?? '';
-  const match = url.match(/^\/ws\/([a-f0-9-]{36})$/i);
+  // La ruta pot venir amb query string (?token=…). Separem-los abans de
+  // fer el match del sessionId.
+  const [pathPart, queryPart = ''] = url.split('?');
+  const match = pathPart.match(/^\/ws\/([a-f0-9-]{36})$/i);
   if (!match) {
     socket.destroy();
     return;
+  }
+  if (ACCESS_TOKEN) {
+    const token = new URLSearchParams(queryPart).get('token') ?? '';
+    if (token !== ACCESS_TOKEN) {
+      socket.destroy();
+      return;
+    }
   }
   const sessionId = match[1];
   const session = sessionStore.get(sessionId);
@@ -231,6 +290,7 @@ if (require.main === module) {
     console.log(`  POST http://localhost:${addr.port}/session { region, docType }`);
     console.log(`  WS   ws://localhost:${addr.port}/ws/:sessionId`);
     console.log(`  API key ${API_KEY ? 'OK' : 'FALTA (configura GEMINI_API_KEY al .env)'}`);
+    console.log(`  Access token ${ACCESS_TOKEN ? 'OK (endpoints protegits)' : 'no configurat (mode obert — només per dev local)'}`);
   });
 }
 
