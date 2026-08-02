@@ -14,13 +14,28 @@ export interface ValidationResult {
 
 const SCHEMA_ID_BASE = 'https://sentinel.local/schemas';
 
-// Camps que Gemini no accepta (o ignora) al function calling.
-// Es treuen abans d'enviar-hi el schema.
+// Camps que Gemini no accepta (o ignora) al function calling, o que
+// contradiuen el disseny de crides parcials.
+//
+// 'required' és el cas important: el system prompt demana explícitament
+// que Gemini crida la funció amb NOMÉS els camps nous o modificats a
+// cada torn ("Retorna només els camps nous o modificats"). Si el deixem
+// al schema que rebem Gemini, el model interpreta que necessita tenir
+// TOTS els camps required (titular + declarant + adreca + installacio
+// per al DR, per exemple) abans de gosar cridar la funció — i es queda
+// conversant en comptes d'anotar parcialment. Detectat el 2026-08-02:
+// amb DR, dir només el titular no disparava mai el toolCall.
+//
+// La completesa final es verifica igualment a POST /submit, que valida
+// amb ajv contra l'schema ORIGINAL (amb 'required' intacte) via
+// schemaLoader.validate() — aquest strip només afecta el que es declara
+// a Gemini per al function calling en viu.
 const GEMINI_STRIP_KEYS = new Set([
   '$schema', '$id', '$defs', '$ref',
   'pattern', 'format',
   'title', 'default',
   'additionalProperties',
+  'required',
 ]);
 
 export class SchemaLoader {

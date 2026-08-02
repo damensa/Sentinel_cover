@@ -72,6 +72,10 @@ async function main() {
   const bundledStr = JSON.stringify(bundled);
   check(!bundledStr.includes('$ref'), 'no queden $ref al bundle');
   check(!bundledStr.includes('$defs'), 'no queden $defs al bundle');
+  check(
+    !bundledStr.includes('"required"'),
+    "no queda 'required' al bundle (Gemini ha de poder cridar amb dades parcials)",
+  );
   check(!bundledStr.includes('$id'), 'no queda $id al bundle');
   check(!bundledStr.includes('pattern'), 'no queda pattern al bundle');
   check(bundled.type === 'object', 'top-level type és object');
