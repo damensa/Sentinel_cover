@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { submitSession, documentUrl, type SubmitResponse } from '../api/gateway';
+import { friendlyErrorMessages } from '../utils/friendlyErrors';
 
 type State = 'sending' | 'ok' | 'invalid' | 'unsupported' | 'error';
 
@@ -71,11 +72,21 @@ export function SubmitPage() {
 
       {state === 'invalid' && (
         <>
-          <p className="error-msg">Hi ha camps que no compleixen l'schema. Torna a la conversa per completar-los.</p>
+          <p className="error-msg">Encara falten algunes dades. Torna a la conversa i digues-les (o escriu-les al camp de text).</p>
           <div className="card">
             <label>Què falta</label>
-            <pre className="json">{JSON.stringify(result?.errors, null, 2)}</pre>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {friendlyErrorMessages(result?.errors ?? []).map((msg, i) => (
+                <li key={i} style={{ marginBottom: 6 }}>{msg}</li>
+              ))}
+            </ul>
           </div>
+          <details className="card">
+            <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12 }}>
+              Detall tècnic
+            </summary>
+            <pre className="json" style={{ marginTop: 10 }}>{JSON.stringify(result?.errors, null, 2)}</pre>
+          </details>
           <div className="card">
             <label>Estat actual</label>
             <pre className="json">{JSON.stringify(result?.fields, null, 2)}</pre>
