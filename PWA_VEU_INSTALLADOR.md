@@ -1,8 +1,9 @@
 # PWA de veu per a l'instal·lador — Disseny
 
-Branca: `feature/pwa-veu-instalador`
+Branca: fusionada a `master`
 Data d'inici: 2026-07-31
-Estat: **concepte validat 2026-08-01**, implementació en curs (§11).
+Estat: **veu funcionant end-to-end 2026-08-02** (§12). Pendent: connectar amb
+`FormFillerService` per generar els PDFs, i qualitat de dades.
 
 Aquest document recull totes les decisions preses durant la conversa de disseny sobre com afegir un canal de veu interactiu al projecte Sentinel, perquè l'instal·lador pugui omplir els PDFs parlant en comptes d'escriure per WhatsApp.
 
@@ -231,3 +232,82 @@ Resultat: totes les crides a `save_elec1_fields` van retornar un JSON estructura
 3. **Confirmació verbal dels camps crítics**: el system prompt actual no és prou emfàtic. Per a producció, canviar les instruccions perquè Gemini repeteixi valor + "correcte?" per titular, NIF, CUPS, potència i adreça.
 
 Cap dels tres és bloquejant per començar a implementar.
+
+## 12. Veu funcionant end-to-end a la PWA (2026-08-02)
+
+Primera conversa completa per veu des de la PWA: micròfon → gateway → Gemini
+Live → `toolCall` → camps a pantalla, amb Gemini confirmant en veu.
+
+### El paràmetre que ho desbloqueja: `thinkingConfig`
+
+Durant hores el gateway rebia àudio i Gemini responia parlant perfectament,
+però **no emetia mai `toolCall`**. Es van descartar per diagnòstic: format
+d'àudio (16 kHz OK), nivell del micròfon (pic 0.5 OK), buffering de chunks,
+`audioStreamEnd`, `toolConfig`, i dos models alternatius.
+
+La causa era que **el gateway no configurava `thinkingConfig`**. A AI Studio
+això és el desplegable "Thinking level": amb `Minimal` el model no crida mai
+la funció; en pujar-lo comença a fer-ho. El SDK ho exposa a
+`LiveConnectConfig.thinkingConfig.thinkingLevel`
+(`MINIMAL` | `LOW` | `MEDIUM` | `HIGH`).
+
+```ts
+thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
+```
+
+Configurable amb `GEMINI_THINKING_LEVEL` al `.env`.
+
+**Lliçó de procés**: teníem una configuració validada manualment i ens en vam
+allunyar (prompt simplificat, models alternatius, STT del navegador) en comptes
+de replicar-la camp a camp. Davant d'una referència que funciona, replicar-la
+exactament primer i divergir després, d'un paràmetre a la vegada.
+
+### Camí descartat: Web Speech API del navegador
+
+Es va provar transcriure al navegador i enviar text al gateway. Amb `ca-ES`,
+Chrome transcriu "el titular és 46789012M" com **"curs en genèric quatre sis
+secuineu-los"**. Inservible per a dictat tècnic amb DNIs i CUPS. L'àudio va
+directe a Gemini, que sí que ho entén.
+
+L'input de text es manté a la UI com a fallback manual.
+
+### Configuració que funciona
+
+| Paràmetre | Valor |
+|---|---|
+| Model | `gemini-3.1-flash-live-preview` |
+| `responseModalities` | `[AUDIO]` (TEXT fa timeout al connect) |
+| `thinkingConfig.thinkingLevel` | `HIGH` |
+| `speechConfig` veu | `Zephyr` |
+| `inputAudioTranscription` | `{}` |
+| `outputAudioTranscription` | `{}` |
+| Resposta al `toolCall` | `sendToolResponse` immediat |
+| Àudio d'entrada | PCM 16 kHz mono, chunks ~100 ms |
+| Àudio de sortida | PCM 24 kHz mono, encadenat a `pwa/src/audio/player.ts` |
+
+### Qualitat de dades observada
+
+Primera conversa real, dient "Joan Garcia Puig", adreça i CUPS:
+
+```json
+{
+  "titular": { "nom_complet": "Juan García Puig", "nif": "46789012M" },
+  "instalacio": { "cups": "ES0031405221001234AB", "potencia_kw": 5.75,
+                  "tensio": "230 V", "us": "Instal·lacions d'habitatges" },
+  "emplacament": { "nom_via": "Diagonal", "num_via": "340",
+                   "codi_postal": "08037", "poblacio": "Barcelona" }
+}
+```
+
+Correcte: NIF, CUPS sencer, potència, tensió, ús mapejat a l'enum.
+
+**Dos problemes de qualitat pendents:**
+
+1. **Castellanització de noms catalans**: "Joan Garcia" → "Juan García". Més
+   greu que el matís de §11 (allà només era l'accent). Cal reforçar el system
+   prompt perquè respecti la grafia catalana dels noms propis, i possiblement
+   validar contra el DNI.
+2. **`emplacament` incomplet**: falten `tipus_via` ("Avinguda"), `pis` ("3r") i
+   `porta` ("2a") tot i haver-los dit. Són opcionals a l'schema, així que
+   valida igual i la pèrdua passa desapercebuda. Cal insistir-hi al prompt o
+   fer que la pantalla de Revisió els demani explícitament.
