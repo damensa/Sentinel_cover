@@ -1,0 +1,31 @@
+[Unit]
+Description=Sentinel gateway — PWA de veu + Gemini Live relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/sentinel/whatsapp-bot
+ExecStart=/opt/sentinel/whatsapp-bot/node_modules/.bin/ts-node --transpile-only src/gateway/server.ts
+
+# El gateway carrega process.env.* via dotenv.config() del .env del
+# WorkingDirectory, així que no cal EnvironmentFile aquí.
+
+# Reinicia si peta però evita bucles infinits amb un backoff.
+Restart=on-failure
+RestartSec=5
+
+# Logs a journald (revisar amb: journalctl -u sentinel-gateway -f).
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sentinel-gateway
+
+# Enduriment bàsic.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/sentinel/whatsapp-bot
+
+[Install]
+WantedBy=multi-user.target

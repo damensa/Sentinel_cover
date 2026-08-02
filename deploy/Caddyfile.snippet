@@ -1,0 +1,8 @@
+# Bloc a afegir a /opt/tusecre/Caddyfile per a Sentinel.
+# Segueix la mateixa convenció que la resta de subdominis (172.17.0.1 =
+# pont Docker per arribar al host, on corre el gateway a systemd).
+# Caddy gestiona el certificat de Let's Encrypt automàticament.
+
+sentinel.tusecre.online {
+ reverse_proxy 172.17.0.1:3001
+}
