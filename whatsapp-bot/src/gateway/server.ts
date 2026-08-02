@@ -147,8 +147,11 @@ async function handleClient(ws: WebSocket, sessionId: string): Promise<void> {
         gemini.sendFunctionResponse(callId, name, { ok: true });
       },
       onModelText: (text) => {
-        console.log(`[gateway] Gemini text: ${text.slice(0, 80)}`);
         sendEvent(ws, { type: 'model_text', text });
+      },
+      onInputTranscript: (text) => {
+        console.log(`[gateway] transcripció usuari: ${text}`);
+        sendEvent(ws, { type: 'user_transcript', text });
       },
       onModelAudio: (base64) => {
         modelAudioChunks++;

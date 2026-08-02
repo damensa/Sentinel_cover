@@ -34,6 +34,7 @@ export async function submitSession(
 export type GatewayEvent =
   | { type: 'field_update'; fields: Record<string, any>; delta: Record<string, any> }
   | { type: 'model_text'; text: string }
+  | { type: 'user_transcript'; text: string }
   | { type: 'model_audio'; data: string }
   | { type: 'turn_complete' }
   | { type: 'session_end' }

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { openGatewayWs, type GatewayEvent, type GatewayWs } from '../api/gateway';
-import { createSpeechRecognition, type SpeechRec } from '../audio/speech-recognition';
+import { createRecorder, type Recorder } from '../audio/recorder';
+import { createAudioPlayer, type AudioPlayer } from '../audio/player';
 
 interface Bubble {
   who: 'user' | 'model';
   text: string;
-  ts: number;
 }
 
 const CRITICAL_KEYS = new Set([
@@ -22,69 +22,66 @@ export function ConversationPage() {
   const [recording, setRecording] = useState(false);
   const [fields, setFields] = useState<Record<string, any>>({});
   const [transcript, setTranscript] = useState<Bubble[]>([]);
-  const [interim, setInterim] = useState<string>('');
+  const [manualText, setManualText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<GatewayWs | null>(null);
-  const speechRef = useRef<SpeechRec | null>(null);
+  const recRef = useRef<Recorder | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
 
+    const player = createAudioPlayer();
+    playerRef.current = player;
+
     const ws = openGatewayWs(
       sessionId,
-      (evt) => { if (!cancelled) handleEvent(evt); },
+      (evt) => { if (!cancelled) handleEvent(evt, player); },
       () => { if (!cancelled) setConnected(true); },
       () => { if (!cancelled) setConnected(false); },
     );
     wsRef.current = ws;
 
-    // Llengua per defecte català; es pot forçar amb ?lang=xx-XX per proves
-    // (per exemple ?lang=en-US o ?lang=es-ES).
-    const urlLang = new URLSearchParams(window.location.hash.split('?')[1] ?? window.location.search).get('lang');
-    const rec = createSpeechRecognition(
-      urlLang ?? 'ca-ES',
-      (text, isFinal) => {
-        if (cancelled) return;
-        setInterim(text);
-        if (isFinal && text) {
-          setInterim('');
-          setTranscript((t) => [...t, { who: 'user', text, ts: Date.now() }]);
-          ws.sendText(text);
-        }
-      },
-      (msg) => { if (!cancelled) setError(msg); },
-    );
-    speechRef.current = rec;
-    if (!rec.isSupported()) {
-      setError("El teu navegador no suporta Speech Recognition. Prova amb Chrome o Edge.");
-    }
+    createRecorder((pcm) => ws.send(pcm))
+      .then((r) => {
+        if (cancelled) { void r.destroy(); return; }
+        recRef.current = r;
+      })
+      .catch((e) => {
+        if (!cancelled) setError(`No s'ha pogut activar el micròfon: ${e.message}`);
+      });
 
     return () => {
       cancelled = true;
       ws.close();
       wsRef.current = null;
-      rec.stop();
-      speechRef.current = null;
+      void recRef.current?.destroy();
+      recRef.current = null;
+      void player.destroy();
+      playerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  function handleEvent(evt: GatewayEvent) {
+  function handleEvent(evt: GatewayEvent, player: AudioPlayer) {
     switch (evt.type) {
       case 'field_update':
         setFields(evt.fields ?? {});
         break;
+      case 'user_transcript':
+        appendChunk('user', evt.text);
+        break;
       case 'model_text':
-        setTranscript((t) => [...t, { who: 'model', text: evt.text, ts: Date.now() }]);
-        speak(evt.text);
+        appendChunk('model', evt.text);
         break;
       case 'model_audio':
-        // El model també respon amb àudio; per ara ho ignorem, TTS del navegador
-        // s'encarrega de reproduir la resposta a partir del text (si arriba).
+        player.push(evt.data);
         break;
       case 'turn_complete':
+        // El pròxim tros de text obre una bombolla nova.
+        setTranscript((t) => (t.length && t[t.length - 1].text ? [...t, { who: 'model', text: '' }] : t));
         break;
       case 'error':
         setError(evt.message);
@@ -95,28 +92,36 @@ export function ConversationPage() {
     }
   }
 
-  function pttDown() {
-    if (!speechRef.current || recording) return;
-    setInterim('');
-    speechRef.current.start();
+  // Les transcripcions arriben en trossos; els anem concatenant a la darrera
+  // bombolla del mateix interlocutor en comptes de crear-ne una per tros.
+  function appendChunk(who: 'user' | 'model', text: string) {
+    setTranscript((t) => {
+      const last = t[t.length - 1];
+      if (last && last.who === who) {
+        return [...t.slice(0, -1), { who, text: (last.text + text).trimStart() }];
+      }
+      return [...t.filter((b) => b.text), { who, text: text.trimStart() }];
+    });
+  }
+
+  async function pttDown() {
+    if (!recRef.current || recording) return;
+    playerRef.current?.stop(); // interromp Gemini si encara parla
+    await recRef.current.start();
     setRecording(true);
   }
 
   function pttUp() {
-    if (!speechRef.current || !recording) return;
-    speechRef.current.stop();
+    if (!recRef.current || !recording) return;
+    recRef.current.stop();
     setRecording(false);
+    wsRef.current?.sendAudioStreamEnd();
   }
 
-  function goReview() {
-    nav(`/review/${sessionId}`, { state: { fields } });
-  }
-
-  const [manualText, setManualText] = useState('');
   function sendManual() {
     const t = manualText.trim();
     if (!t || !wsRef.current) return;
-    setTranscript((tt) => [...tt, { who: 'user', text: t, ts: Date.now() }]);
+    appendChunk('user', t);
     wsRef.current.sendText(t);
     setManualText('');
   }
@@ -128,28 +133,24 @@ export function ConversationPage() {
         <span className={`status-dot ${connected ? 'live' : error ? 'err' : ''}`} />
         <span>{connected ? 'Sessió activa' : error ? 'Desconnectat' : 'Connectant…'}</span>
         <span style={{ marginLeft: 'auto' }}>
-          <button className="btn secondary" onClick={goReview}>Revisa →</button>
+          <button className="btn secondary" onClick={() => nav(`/review/${sessionId}`, { state: { fields } })}>
+            Revisa →
+          </button>
         </span>
       </div>
 
       <div className="card">
         <label>Conversa</label>
         <div className="transcript">
-          {transcript.length === 0 && !interim && (
+          {transcript.filter((b) => b.text).length === 0 && (
             <p className="page-sub">Prem "Parla", digues la dada, i deixa anar.</p>
           )}
-          {transcript.map((b, i) => (
+          {transcript.filter((b) => b.text).map((b, i) => (
             <div key={i} className={`bubble ${b.who}`}>
               <span className="who">{b.who === 'user' ? 'Tu' : 'Sentinel'}</span>
               {b.text}
             </div>
           ))}
-          {interim && (
-            <div className="bubble user" style={{ opacity: 0.6 }}>
-              <span className="who">Tu (interpretant…)</span>
-              {interim}
-            </div>
-          )}
         </div>
       </div>
 
@@ -235,15 +236,4 @@ function formatValue(v: any): string {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'boolean') return v ? 'Sí' : 'No';
   return String(v);
-}
-
-function speak(text: string): void {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  try {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ca-ES';
-    u.rate = 1.0;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  } catch { /* ignore */ }
 }
