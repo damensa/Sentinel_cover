@@ -66,11 +66,19 @@ Nota tècnica: Gemini no resol `$ref` cross-file. Al backend s'ha de bundlejar e
 ### 2.6 UX de la pantalla de Conversa
 
 - **Push-to-talk per defecte**, mode mans lliures com a toggle a Ajustaments (VAD al navegador; útil amb guants però més fals-positius).
-- **Resposta parlada de Gemini**: verbosa per als camps crítics (`"He anotat CUPS acabat en AB"`), curta per la resta (`"Anotat"`).
-- **Correcció manual només amb text**: tocar un camp obre un input inline. La correcció per veu d'un camp aïllat té més error que el teclat.
+- **Resposta parlada de Gemini**: curta i sense confirmació dada a dada. Només "anotat", "següent", etc. Vam intentar confirmació verbal per crítics (2026-08-02) però Gemini Live audio-to-audio no espera resposta i encadena la següent pregunta abans que l'usuari confirmi — resultat frustrant. La confirmació passa a la pantalla de Revisió.
 - **Contorn puntejat lila 2s** sobre els camps que s'acaben d'omplir, per no perdre l'ull quan cauen diversos alhora.
 - **Interrupció**: l'instal·lador pot prémer PTT mentre Gemini parla; Gemini Live suporta interrupció nativa.
 - **Persistència de sessió**: el JSON parcial es desa al backend cada 5s per no perdre res si es cau la connexió.
+
+### 2.7 Flux de confirmació i correcció (2026-08-03)
+
+Enfoc revisat després de veure que la confirmació per veu no funcionava:
+
+1. Gemini va anotant, respon curt (`anotat`, `següent`), no llegeix valors ni demana confirmació.
+2. Quan té totes les dades importants, tanca amb frase fixa: *"Ja tinc totes les dades. Revisa-les a la pantalla i, si veus alguna cosa malament, torna aquí i digues-me què he de corregir."*
+3. L'usuari obre la pantalla de Revisió: veu els camps recollits per aquest tipus de document, amb els que falten en vermell (`FALTA`) i el botó `Envia →` desactivat fins que els crítics hi siguin tots.
+4. Si algun camp és incorrecte, l'usuari torna a la conversa i diu "el CUPS acaba en AC no AB". Gemini reconeix la correcció, actualitza només aquell camp i respon `Corregit, ara diu AC`. No repassa la resta.
 
 ## 3. Arquitectura
 

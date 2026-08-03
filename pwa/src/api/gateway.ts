@@ -34,6 +34,8 @@ function authHeaders(): Record<string, string> {
 export interface CreateSessionResponse {
   sessionId: string;
   wsUrl: string;
+  region: Region;
+  docType: DocType;
 }
 
 export async function createSession(

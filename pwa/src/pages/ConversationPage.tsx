@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { openGatewayWs, type GatewayEvent, type GatewayWs } from '../api/gateway';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { openGatewayWs, type GatewayEvent, type GatewayWs, type DocType, type Region } from '../api/gateway';
 import { createRecorder, type Recorder } from '../audio/recorder';
 import { createAudioPlayer, type AudioPlayer } from '../audio/player';
 
@@ -17,6 +17,19 @@ const CRITICAL_KEYS = new Set([
 export function ConversationPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const nav = useNavigate();
+
+  // region/docType venen del router state (Selection ho passa). Si l'usuari
+  // fa F5 aquí, el state es perd → els llegim de sessionStorage. Ho fem servir
+  // per passar-los a la Revisió i saber quins camps mostrar.
+  const routerState = useLocation().state as { region?: Region; docType?: DocType } | null;
+  const sessionKey = sessionId ? `sentinel_session_${sessionId}` : '';
+  const stored = sessionKey ? sessionStorage.getItem(sessionKey) : null;
+  const parsedStored = stored ? (JSON.parse(stored) as { region: Region; docType: DocType }) : null;
+  const region: Region | undefined = routerState?.region ?? parsedStored?.region;
+  const docType: DocType | undefined = routerState?.docType ?? parsedStored?.docType;
+  if (routerState && sessionKey && !stored) {
+    sessionStorage.setItem(sessionKey, JSON.stringify({ region, docType }));
+  }
 
   const [connected, setConnected] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -133,7 +146,7 @@ export function ConversationPage() {
         <span className={`status-dot ${connected ? 'live' : error ? 'err' : ''}`} />
         <span>{connected ? 'Sessió activa' : error ? 'Desconnectat' : 'Connectant…'}</span>
         <span style={{ marginLeft: 'auto' }}>
-          <button className="btn secondary" onClick={() => nav(`/review/${sessionId}`, { state: { fields } })}>
+          <button className="btn secondary" onClick={() => nav(`/review/${sessionId}`, { state: { fields, docType } })}>
             Revisa →
           </button>
         </span>

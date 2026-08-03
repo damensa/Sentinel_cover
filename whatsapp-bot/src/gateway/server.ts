@@ -54,7 +54,7 @@ app.post('/session', requireToken, (req, res) => {
     return res.status(400).json({ error: "region i docType requerits" });
   }
   const s = sessionStore.create(region, docType);
-  res.json({ sessionId: s.id, wsUrl: `/ws/${s.id}` });
+  res.json({ sessionId: s.id, wsUrl: `/ws/${s.id}`, region: s.region, docType: s.docType });
 });
 
 // POST /session/:id/submit → valida el JSON acumulat i genera els documents
