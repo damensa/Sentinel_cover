@@ -17,6 +17,10 @@ export function geminiJsonToDRFormData(g: DrGeminiOutput): DRFormData {
       tipusVia: g.adreca?.tipus_via,
       nomVia: g.adreca?.nom_via ?? '',
       numero: g.adreca?.num_via ?? '',
+      bloc: g.adreca?.bloc,
+      escala: g.adreca?.escala,
+      pis: g.adreca?.pis,
+      porta: g.adreca?.porta,
       poblacio,
       codiPostal: g.adreca?.codi_postal ?? '',
       // A Catalunya poblacio i municipi solen coincidir; si Gemini no diu

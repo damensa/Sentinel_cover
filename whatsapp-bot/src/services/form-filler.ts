@@ -24,7 +24,19 @@ export interface Elec1FormData {
 export interface DRFormData {
     titular: { nom: string; nif: string; };
     installacio: { tipus: string; campReglamentari: string; cups: string; };
-    adreca: { tipusVia?: string; nomVia: string; numero: string; poblacio: string; codiPostal: string; municipi: string; comarca: string; };
+    adreca: {
+        tipusVia?: string;
+        nomVia: string;
+        numero: string;
+        bloc?: string;
+        escala?: string;
+        pis?: string;
+        porta?: string;
+        poblacio: string;
+        codiPostal: string;
+        municipi: string;
+        comarca: string;
+    };
     declarant: { nom: string; nif: string; tipusPersona: string; };
 }
 
@@ -151,6 +163,36 @@ export interface DictamenFormData {
     }[];
 }
 
+// Tipus i helpers per a la injecció XFA amb consciència de ruta.
+
+export interface XfaInjection {
+    /**
+     * Ruta al bloc pare relatiu a `<DATA>`, com a array de noms de tag.
+     * Buit = els fills directes de `<DATA>`. Exemple: `['sDeclaracio']` per
+     * al bloc del declarant, `['ADRECA', 'ADRECA_POSTAL']` per als camps
+     * d'adreça.
+     */
+    parentPath: string[];
+    /** Tag → valor. Els tags ja existents al bloc s'actualitzen. */
+    fields: Record<string, string | undefined>;
+    /**
+     * Si true, els tags que no existeixin al bloc s'insereixen just abans
+     * del tancament del pare. Útil per omplir camps que el datasets
+     * original no té declarats (per exemple, camps d'adreça que el
+     * template va deixar `bind="none"` i que ara volem lligar).
+     */
+    createMissing?: boolean;
+    /**
+     * Si true, crea els blocs pare si no existeixen. Per defecte, no.
+     */
+    createParents?: boolean;
+}
+
+export interface XfaTemplatePatch {
+    fieldName: string;
+    bindRef: string;
+}
+
 export class FormFillerService {
     private profilePath: string;
     private projectRoot: string;
@@ -183,56 +225,66 @@ export class FormFillerService {
         return null;
     }
 
-    private async fillXfaByTag(sourcePath: string, outputPath: string, data: Record<string, string>): Promise<string> {
+    /**
+     * Injecta valors al packet `datasets` d'un PDF XFA respectant la ruta
+     * jeràrquica. Cada `XfaInjection` opera dins d'un bloc concret del
+     * datasets (per exemple, els fills directes de `<DATA>` per al titular,
+     * els fills de `<sDeclaracio>` per al declarant); així no es barregen
+     * tags amb el mateix nom que apareixen a llocs diferents.
+     *
+     * Opcionalment també parcheja el packet `template` per canviar
+     * `<bind match="none"/>` per bindings explícits, útil quan el
+     * dissenyador del PDF va deixar camps visuals desvinculats a
+     * propòsit i vols habilitar-los per omplir-los per codi.
+     */
+    private async fillXfaByPath(
+        sourcePath: string,
+        outputPath: string,
+        injections: XfaInjection[],
+        templatePatches: XfaTemplatePatch[] = [],
+    ): Promise<string> {
         const pdfDoc = await PDFDocument.load(fs.readFileSync(sourcePath), { ignoreEncryption: true });
         const acroFormRef = pdfDoc.catalog.get(PDFName.of('AcroForm'));
         if (!acroFormRef) throw new Error(`AcroForm missing in ${sourcePath}`);
-
         const acroForm = pdfDoc.context.lookup(acroFormRef) as any;
         const xfaRef = acroForm.get(PDFName.of('XFA'));
         if (!xfaRef) throw new Error(`XFA missing in ${sourcePath}`);
-
         const xfa = pdfDoc.context.lookup(xfaRef) as any;
-        let datasetsIndex = -1;
-        let datasetsRef: any = null;
-        for (let i = 0; i < xfa.size(); i += 2) {
-            const name = String(pdfDoc.context.lookup(xfa.get(i)));
-            if (name.includes('datasets')) {
-                datasetsIndex = i + 1;
-                datasetsRef = xfa.get(i + 1);
-                break;
+
+        const readPacket = (needle: string): { xml: string; refIndex: number } | null => {
+            for (let i = 0; i < xfa.size(); i += 2) {
+                const packetName = String(pdfDoc.context.lookup(xfa.get(i)));
+                if (packetName.includes(needle)) {
+                    const stream = pdfDoc.context.lookup(xfa.get(i + 1)) as any;
+                    let contents = stream.contents as Buffer;
+                    if (!contents) return null;
+                    const filter = stream.dict.get(PDFName.of('Filter'));
+                    if (filter && String(filter).includes('FlateDecode')) contents = zlib.inflateSync(contents);
+                    return { xml: Buffer.from(contents).toString('utf8'), refIndex: i + 1 };
+                }
             }
-        }
-        if (!datasetsRef || datasetsIndex < 0) throw new Error(`XFA datasets missing in ${sourcePath}`);
+            return null;
+        };
 
-        const stream = pdfDoc.context.lookup(datasetsRef) as any;
-        let contents = stream.contents as Buffer;
-        if (!contents) throw new Error(`XFA datasets stream empty in ${sourcePath}`);
+        const writePacket = (refIndex: number, xml: string) => {
+            // Passem un Buffer UTF-8 explícit; si es passa string, pdf-lib
+            // el tracta com Latin-1 i els caràcters multibyte (accents
+            // catalans, ç, etc.) es corrompen — ho vam veure amb "Barcelonès".
+            const newStream = pdfDoc.context.flateStream(Buffer.from(xml, 'utf8'));
+            xfa.set(refIndex, pdfDoc.context.register(newStream));
+        };
 
-        const filter = stream.dict.get(PDFName.of('Filter'));
-        if (filter && String(filter).includes('FlateDecode')) {
-            contents = zlib.inflateSync(contents);
-        }
-
-        let xml = Buffer.from(contents).toString('utf8');
-        const escapeXml = (value: string) =>
-            String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&apos;');
-
-        for (const [tag, rawValue] of Object.entries(data)) {
-            const value = escapeXml(rawValue);
-            const paired = new RegExp(`(<${tag}(?:\\s[^>]*)?>)([\\s\\S]*?)(</${tag}>)`, 'g');
-            const selfClosing = new RegExp(`<${tag}([^>]*)/>`, 'g');
-            xml = xml.replace(paired, `$1${value}$3`);
-            xml = xml.replace(selfClosing, `<${tag}$1>${value}</${tag}>`);
+        if (templatePatches.length > 0) {
+            const tp = readPacket('template');
+            if (tp) writePacket(tp.refIndex, patchXfaTemplate(tp.xml, templatePatches));
         }
 
-        const newStream = pdfDoc.context.flateStream(xml);
-        xfa.set(datasetsIndex, pdfDoc.context.register(newStream));
+        const dp = readPacket('datasets');
+        if (!dp) throw new Error(`XFA datasets missing in ${sourcePath}`);
+        let datasetsXml = dp.xml;
+        for (const inj of injections) datasetsXml = applyXfaInjection(datasetsXml, inj);
+        writePacket(dp.refIndex, datasetsXml);
+
         fs.writeFileSync(outputPath, await pdfDoc.save());
         return outputPath;
     }
@@ -410,15 +462,74 @@ export class FormFillerService {
 
         if (!fs.existsSync(templatePath)) throw new Error(`Template not found at ${templatePath}`);
         if (region === 'catalunya') {
-            return this.fillXfaByTag(templatePath, this.getOutputPath(`${region.toUpperCase()}_DR_filled_${Date.now()}.pdf`), {
-                TXT_Nom: data.titular.nom,
-                TXT_NumID: data.titular.nif,
-                TIPUS_VIA: data.adreca.tipusVia || '',
-                RB_TipusInstalacio: data.installacio.tipus,
-                TXT_CampReglamentari: data.installacio.campReglamentari,
-                TXT_NumCUPS: data.installacio.cups,
-                RB_TipusPersona: data.declarant.tipusPersona === 'TIT' ? '1' : '2',
-            });
+            // La DR de Catalunya és XFA dinàmic amb dues subtileses del template:
+            //   1. Els camps del titular i del declarant tenen el mateix nom
+            //      (`TXT_Nom`, `TXT_NumID`), un a l'arrel de <DATA> i l'altre
+            //      dins <sDeclaracio>. Cal injectar per ruta perquè no
+            //      s'esborrin mútuament.
+            //   2. Els camps d'adreça (nom_via, num_via, bloc, escala, pis,
+            //      porta, codi_postal, població, municipi, comarca, província)
+            //      tenen `bind match="none"` al template, no els lligava a
+            //      cap dada. Els patchejem al vol per lligar-los al datasets.
+            const outputPath = this.getOutputPath(`${region.toUpperCase()}_DR_filled_${Date.now()}.pdf`);
+            const sameAsTitular =
+                data.declarant?.nif && data.titular?.nif && data.declarant.nif === data.titular.nif;
+            return this.fillXfaByPath(
+                templatePath,
+                outputPath,
+                [
+                    {
+                        parentPath: [],
+                        fields: {
+                            TXT_Nom: data.titular.nom,
+                            TXT_NumID: data.titular.nif,
+                            RB_TipusInstalacio: data.installacio.tipus,
+                            TXT_CampReglamentari: data.installacio.campReglamentari,
+                            TXT_NumCUPS: data.installacio.cups,
+                        },
+                    },
+                    {
+                        parentPath: ['sDeclaracio'],
+                        fields: {
+                            TXT_Nom: data.declarant.nom,
+                            TXT_NumID: data.declarant.nif,
+                            // '1' = declarant és el mateix titular; '2' = és representant.
+                            RB_TipusPersona: sameAsTitular ? '1' : '2',
+                        },
+                    },
+                    {
+                        parentPath: ['ADRECA', 'ADRECA_POSTAL'],
+                        createParents: true,
+                        createMissing: true,
+                        fields: {
+                            TIPUS_VIA: data.adreca.tipusVia,
+                            NOM_VIA: data.adreca.nomVia,
+                            NUM_VIA: data.adreca.numero,
+                            BLOC: data.adreca.bloc,
+                            ESCALA: data.adreca.escala,
+                            PIS: data.adreca.pis,
+                            PORTA: data.adreca.porta,
+                            CODI_POSTAL: data.adreca.codiPostal,
+                            POBLACIO: data.adreca.poblacio,
+                            MUNICIPI: data.adreca.municipi,
+                            COMARCA: data.adreca.comarca,
+                        },
+                    },
+                ],
+                [
+                    { fieldName: 'TXT_NomVia', bindRef: '$.ADRECA.ADRECA_POSTAL.NOM_VIA' },
+                    { fieldName: 'TXT_NumVia', bindRef: '$.ADRECA.ADRECA_POSTAL.NUM_VIA' },
+                    { fieldName: 'TXT_Bloc', bindRef: '$.ADRECA.ADRECA_POSTAL.BLOC' },
+                    { fieldName: 'TXT_Escala', bindRef: '$.ADRECA.ADRECA_POSTAL.ESCALA' },
+                    { fieldName: 'TXT_Pis', bindRef: '$.ADRECA.ADRECA_POSTAL.PIS' },
+                    { fieldName: 'TXT_Porta', bindRef: '$.ADRECA.ADRECA_POSTAL.PORTA' },
+                    { fieldName: 'TXT_CodiPostal', bindRef: '$.ADRECA.ADRECA_POSTAL.CODI_POSTAL' },
+                    { fieldName: 'TXT_Poblacio', bindRef: '$.ADRECA.ADRECA_POSTAL.POBLACIO' },
+                    { fieldName: 'TXT_Municipi', bindRef: '$.ADRECA.ADRECA_POSTAL.MUNICIPI' },
+                    { fieldName: 'TXT_Comarca', bindRef: '$.ADRECA.ADRECA_POSTAL.COMARCA' },
+                    { fieldName: 'TXT_Provincia', bindRef: '$.ADRECA.ADRECA_POSTAL.PROVINCIA' },
+                ],
+            );
         }
 
         const pdfDoc = await PDFDocument.load(fs.readFileSync(templatePath));
@@ -734,4 +845,231 @@ export class FormFillerService {
         fs.writeFileSync(outputPath, buf);
         return outputPath;
     }
+}
+
+// ============================================================================
+// Helpers per a la injecció XFA amb consciència de ruta (usats per fillXfaByPath).
+// Fora de la classe perquè són funcions pures que es puguin testejar sol.
+// ============================================================================
+
+const XML_NAME_CHARS = /[A-Za-z0-9_:.-]/;
+
+/**
+ * Cerca la propera aparició d'un tag de tancament (`</NAME>`) admetent
+ * whitespace/newline entre el nom i el `>` — cosa comú als XFA (`</TAG\n>`).
+ * Retorna la posició d'inici del `</` o -1.
+ */
+function findCloseTag(xml: string, name: string, fromIdx: number, scopeEnd: number): number {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`</${escaped}\\s*>`, 'g');
+    re.lastIndex = fromIdx;
+    const m = re.exec(xml);
+    if (!m) return -1;
+    if (m.index >= scopeEnd) return -1;
+    return m.index;
+}
+
+/**
+ * Longitud completa d'un tag de tancament trobat amb findCloseTag: cobreix
+ * el whitespace intern (`</TAG\n>` fa 8 caràcters, no 6).
+ */
+function closeTagLength(xml: string, closeIdx: number): number {
+    const gt = xml.indexOf('>', closeIdx);
+    return gt === -1 ? 0 : gt - closeIdx + 1;
+}
+
+function escapeXmlText(value: string | undefined): string {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function escapeXmlAttr(value: string): string {
+    return escapeXmlText(value).replace(/"/g, '&quot;');
+}
+
+/**
+ * Escaneja `xml` entre `scopeStart` i `scopeEnd` mantenint la profunditat
+ * d'anidament. Retorna la primera ocurrència del tag `tag` a **profunditat
+ * 0** dins l'scope — així no es confonen `<TXT_Nom>` de l'arrel amb
+ * `<TXT_Nom>` de dins `<sDeclaracio>`.
+ *
+ * Suporta tres formes: `<TAG/>`, `<TAG></TAG>`, `<TAG>valor</TAG>`, i
+ * atributs opcionals amb qualsevol whitespace/newlines (el XFA sovint
+ * els escriu així).
+ */
+function findTagAtTopLevel(
+    xml: string,
+    tag: string,
+    scopeStart: number,
+    scopeEnd: number,
+): { start: number; end: number; isSelfClosing: boolean } | null {
+    let depth = 0;
+    let i = scopeStart;
+    while (i < scopeEnd) {
+        if (xml.charAt(i) !== '<') { i++; continue; }
+        const next = xml.charAt(i + 1);
+        if (next === '/') {
+            const gt = xml.indexOf('>', i + 2);
+            if (gt === -1 || gt >= scopeEnd) return null;
+            depth--;
+            if (depth < 0) return null;
+            i = gt + 1;
+            continue;
+        }
+        if (next === '?' || next === '!') {
+            const gt = xml.indexOf('>', i + 2);
+            if (gt === -1) return null;
+            i = gt + 1;
+            continue;
+        }
+        let k = i + 1;
+        while (k < scopeEnd && XML_NAME_CHARS.test(xml.charAt(k))) k++;
+        const name = xml.slice(i + 1, k);
+        const gt = xml.indexOf('>', k);
+        if (gt === -1 || gt >= scopeEnd) return null;
+        const isSelfClosing = xml.charAt(gt - 1) === '/';
+
+        if (name === tag && depth === 0) {
+            if (isSelfClosing) return { start: i, end: gt + 1, isSelfClosing: true };
+            const closeIdx = findCloseTag(xml, tag, gt + 1, scopeEnd);
+            if (closeIdx === -1) return null;
+            return { start: i, end: closeIdx + closeTagLength(xml, closeIdx), isSelfClosing: false };
+        }
+        if (!isSelfClosing) depth++;
+        i = gt + 1;
+    }
+    return null;
+}
+
+/**
+ * Escaneja `xml` entre `scopeStart` i `scopeEnd` i retorna el primer
+ * element XML directament dins l'scope (ignorant instruccions com
+ * `<?xml?>`, comentaris i tancaments). Es fa servir per baixar
+ * l'arbre nivell a nivell sense que el depth-tracking global s'espatlli
+ * quan s'entra a un subnivell.
+ */
+function findFirstChildElement(
+    xml: string,
+    scopeStart: number,
+    scopeEnd: number,
+): { name: string; contentStart: number; contentEnd: number; isSelfClosing: boolean } | null {
+    let i = scopeStart;
+    while (i < scopeEnd) {
+        if (xml.charAt(i) !== '<') { i++; continue; }
+        const next = xml.charAt(i + 1);
+        if (next === '?' || next === '!' || next === '/') {
+            const gt = xml.indexOf('>', i);
+            if (gt === -1 || gt >= scopeEnd) return null;
+            i = gt + 1;
+            continue;
+        }
+        let k = i + 1;
+        while (k < scopeEnd && XML_NAME_CHARS.test(xml.charAt(k))) k++;
+        const name = xml.slice(i + 1, k);
+        const gt = xml.indexOf('>', k);
+        if (gt === -1 || gt >= scopeEnd) return null;
+        const isSelfClosing = xml.charAt(gt - 1) === '/';
+        if (isSelfClosing) return { name, contentStart: -1, contentEnd: -1, isSelfClosing: true };
+        const closeIdx = findCloseTag(xml, name, gt + 1, scopeEnd);
+        if (closeIdx === -1) return null;
+        return { name, contentStart: gt + 1, contentEnd: closeIdx, isSelfClosing: false };
+    }
+    return null;
+}
+
+/**
+ * Aplica una injecció a l'XML del datasets. L'estructura XFA sempre és
+ * `<xfa:datasets><xfa:data><ROOT>…camps…</ROOT></xfa:data></xfa:datasets>`;
+ * ROOT és el bloc arrel dels camps (típicament `<DATA>` en els PDFs de
+ * Catalunya, però podria ser un altre nom). Naveguem-hi automàticament
+ * i llavors baixem per `parentPath` dins seu.
+ */
+export function applyXfaInjection(xml: string, inj: XfaInjection): string {
+    const dsLoc = findFirstChildElement(xml, 0, xml.length);
+    if (!dsLoc || dsLoc.isSelfClosing || !dsLoc.name.endsWith('datasets')) return xml;
+    const dataLoc = findFirstChildElement(xml, dsLoc.contentStart, dsLoc.contentEnd);
+    if (!dataLoc || dataLoc.isSelfClosing || !dataLoc.name.endsWith('data')) return xml;
+    const rootLoc = findFirstChildElement(xml, dataLoc.contentStart, dataLoc.contentEnd);
+    if (!rootLoc || rootLoc.isSelfClosing) return xml;
+    let scopeStart = rootLoc.contentStart;
+    let scopeEnd = rootLoc.contentEnd;
+
+    for (const tag of inj.parentPath) {
+        let found = findTagAtTopLevel(xml, tag, scopeStart, scopeEnd);
+        if (!found) {
+            if (!inj.createParents) return xml;
+            const insertion = `<${tag}></${tag}>`;
+            xml = xml.slice(0, scopeEnd) + insertion + xml.slice(scopeEnd);
+            scopeEnd += insertion.length;
+            found = findTagAtTopLevel(xml, tag, scopeStart, scopeEnd);
+            if (!found) return xml;
+        }
+        if (found.isSelfClosing) {
+            // Convertim `<TAG/>` en `<TAG></TAG>` per poder-hi entrar
+            const openEnd = xml.indexOf('/>', found.start) + 2;
+            const replacement = `<${tag}></${tag}>`;
+            xml = xml.slice(0, found.start) + replacement + xml.slice(openEnd);
+            scopeEnd += replacement.length - (openEnd - found.start);
+            found = findTagAtTopLevel(xml, tag, scopeStart, scopeEnd);
+            if (!found || found.isSelfClosing) return xml;
+        }
+        const openTagEnd = xml.indexOf('>', found.start) + 1;
+        // No podem usar lastIndexOf(`</${tag}>`) — al XFA el tancament pot
+        // portar whitespace intern (`</TAG\n>`). Fem servir findCloseTag.
+        const closeTagStart = findCloseTag(xml, tag, openTagEnd, found.end);
+        scopeStart = openTagEnd;
+        scopeEnd = closeTagStart === -1 ? found.end : closeTagStart;
+    }
+
+    for (const [tag, rawVal] of Object.entries(inj.fields)) {
+        if (rawVal === undefined || rawVal === null || rawVal === '') continue;
+        const value = escapeXmlText(rawVal);
+        const existing = findTagAtTopLevel(xml, tag, scopeStart, scopeEnd);
+        const replacement = `<${tag}>${value}</${tag}>`;
+        if (existing) {
+            const delta = replacement.length - (existing.end - existing.start);
+            xml = xml.slice(0, existing.start) + replacement + xml.slice(existing.end);
+            scopeEnd += delta;
+        } else if (inj.createMissing) {
+            xml = xml.slice(0, scopeEnd) + replacement + xml.slice(scopeEnd);
+            scopeEnd += replacement.length;
+        }
+    }
+    return xml;
+}
+
+/**
+ * Modifica el packet `template` per canviar `<bind match="none"/>` per
+ * `<bind match="dataRef" ref="…"/>` en els camps indicats. Serveix per
+ * habilitar camps visuals que el dissenyador del PDF va deixar sense
+ * lligar a datasets a propòsit.
+ *
+ * Toca només el `<bind ...>` del camp identificat per name, res més.
+ */
+export function patchXfaTemplate(xml: string, patches: XfaTemplatePatch[]): string {
+    for (const patch of patches) {
+        const fieldMarker = `<field name="${patch.fieldName}"`;
+        let searchFrom = 0;
+        while (true) {
+            const fieldStart = xml.indexOf(fieldMarker, searchFrom);
+            if (fieldStart === -1) break;
+            const fieldEnd = xml.indexOf('</field', fieldStart);
+            if (fieldEnd === -1) break;
+            const fieldBody = xml.slice(fieldStart, fieldEnd);
+            // Busquem <bind match="none" ... /> (self-closing) dins el body
+            const bindRegex = /<bind\s+match="none"[^/>]*\/>/;
+            const bindMatch = fieldBody.match(bindRegex);
+            if (bindMatch) {
+                const newBind = `<bind match="dataRef" ref="${escapeXmlAttr(patch.bindRef)}"/>`;
+                const idx = fieldStart + (bindMatch.index ?? 0);
+                xml = xml.slice(0, idx) + newBind + xml.slice(idx + bindMatch[0].length);
+                searchFrom = idx + newBind.length;
+            } else {
+                searchFrom = fieldEnd;
+            }
+        }
+    }
+    return xml;
 }
